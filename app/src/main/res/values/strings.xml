@@ -5,4 +5,16 @@
     <string name="hello_world">Hello world LYNNE2!</string>
     <string name="action_settings">Settings</string>
 
+    <string name="destination_title_text">Destination</string>
+    <string name="go_button_text">GO</string>
+    <string name="help_button_text">HELP</string>
+    <string name="options_button_text">options</string>
+    <string name="abort_button_text">ABORT</string>
+    <string name="sample_destination_text">Ex: Peets Coffee, Lafayette, CA</string>
+
+    <color name="go_button_color">#a507a900</color>
+    <color name="help_button_color">#baff0006</color>
+    <color name="destination_edit_text_color">#37006aff</color>
+    <color name="abort_button_color">#ceff0009</color>
+
 </resources>
