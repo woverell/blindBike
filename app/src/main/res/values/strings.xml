@@ -12,7 +12,6 @@
     <string name="abort_button_text">ABORT</string>
     <string name="sample_destination_text">Ex: Peets Coffee, Lafayette, CA</string>
 
-    <string name="apiKey">Fmjtd%7Cluu82q6bnd%2Crg%3Do5-94t2hw</string>
     <string name="aboutPage">https://github.com/mrunde/Bachelor-Thesis/wiki/About</string><string name="helpPage">https://github.com/mrunde/Bachelor-Thesis/wiki/Help</string><string name="search">Search</string>
     <string name="destination_hint">Your destination</string>
     <string name="calculate">Calculate Route</string>
