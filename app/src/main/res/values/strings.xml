@@ -12,9 +12,33 @@
     <string name="abort_button_text">ABORT</string>
     <string name="sample_destination_text">Ex: Peets Coffee, Lafayette, CA</string>
 
-    <color name="go_button_color">#a507a900</color>
-    <color name="help_button_color">#baff0006</color>
-    <color name="destination_edit_text_color">#37006aff</color>
-    <color name="abort_button_color">#ceff0009</color>
+    <string name="apiKey">Fmjtd%7Cluu82q6bnd%2Crg%3Do5-94t2hw</string>
+    <string name="aboutPage">https://github.com/mrunde/Bachelor-Thesis/wiki/About</string><string name="helpPage">https://github.com/mrunde/Bachelor-Thesis/wiki/Help</string><string name="search">Search</string>
+    <string name="destination_hint">Your destination</string>
+    <string name="calculate">Calculate Route</string>
+    <string name="noDestinationEntered">Please enter a destination first and click on Search.</string>
+    <string name="noDestinationFound">No destination could be found. Please try another one.</string>
+
+    <string name="menu_routeTypes">Change route type</string><string name="menu_help">Help</string><string name="menu_about">About</string>
+
+    <string name="menu_allInstructions">Show all instructions</string><string name="menu_debugger">Debugger</string>
+    <string-array name="routeTypes">
+        <item>Fastest</item>
+        <item>Shortest</item>
+        <item>Pedestrian</item>
+        <item>Bicycle</item>
+    </string-array>
+
+    <string name="routeType">Please select a route type</string>
+
+    <string name="start">Start Guidance</string>
+    <string name="routeNotCalculated">Route could not be calculated. Please try again or use another destination.</string><string name="routeNotCalculated_500">Route could not be calculated. Please change your destination. If you are using the pedestrian route type, please use a closer destination.</string>
+    <string name="routeCalculated">Route has been calculated successfully.</string>
+    <string name="jsonImportNotSuccessful">The guidance information could not be imported. Please try again.</string><string name="gpsDisabled">GPS is disabled</string>
+    <string name="recalculate">Recalculating route</string>
+    <string name="openSettings">Open settings</string>
+    <string name="cancel">Cancel</string>
+    <string name="closeActivity_title">Stopping Navigation</string><string name="closeActivity_message">Are you sure you want to stop the navigation?</string>
+    <string name="allInstructions">All route instructions</string>
 
 </resources>

@@ -15,7 +15,7 @@
             android:layout_height="match_parent"
             android:id="@+id/arrowCompassImageView"
             android:focusable="true"
-            android:src="@drawable/Arrow" />
+            android:src="@drawable/arrow" />
     </LinearLayout>
 
     <LinearLayout
