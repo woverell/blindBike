@@ -2,4 +2,6 @@
 <resources>
     <string name="apiKey">Fmjtd%7Cluu82q6bnd%2Crg%3Do5-94t2hw</string>
 
+    <integer name="MAX_RESULTS">5</integer>
+
 </resources>
