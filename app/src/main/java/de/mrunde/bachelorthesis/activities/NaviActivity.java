@@ -265,7 +265,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		addDestinationOverlay(destination_lat, destination_lng);
 
 		// Calculate the route
-		calculateRoute();
+		//calculateRoute();
 
 		// Get the guidance information and create the instructions
 		getGuidance();
