@@ -2,6 +2,7 @@ package edu.csueb.ilab.blindbike.blindbike;
 
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.location.Address;
 import android.location.Geocoder;
 import android.os.AsyncTask;
@@ -17,9 +18,14 @@ import android.widget.Toast;
 
 import com.mapquest.android.maps.GeoPoint;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+
+import de.mrunde.bachelorthesis.activities.NaviActivity;
 
 
 public class EntranceActivity extends ActionBarActivity {
@@ -28,6 +34,12 @@ public class EntranceActivity extends ActionBarActivity {
      * Coordinates of the destination to be sent to the NaviActivity
      */
     private double[] destination_coords;
+
+    private String str_currentLocation;
+
+    private String str_destination;
+
+    private String routeType;
 
     // GUI Variables
     private EditText edit_destination;
@@ -42,6 +54,9 @@ public class EntranceActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_entrance_landscape);
+
+        // Set the route type to fastest
+        this.routeType = getApplicationContext().getString(R.string.ROUTE_TYPE);
 
         setupGUI();
     }
@@ -79,20 +94,31 @@ public class EntranceActivity extends ActionBarActivity {
         button_go.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // Get the entered destination
-                String str_destination = edit_destination.getText().toString();
+                if(button_go.getText() == "") {
+                    // Get the entered destination
+                    String dest_text = edit_destination.getText().toString();
 
-                if (str_destination.length() == 0) {
-                    // If no destination entered then tell user
-                    Toast.makeText(EntranceActivity.this,
-                            R.string.noDestinationEntered, Toast.LENGTH_SHORT)
-                            .show();
-                } else {
-                    // Start asyc SearchDestinationTask to get coordinates from geocoder
-                    SearchDestinationTask destinationTask = new SearchDestinationTask();
-                    destinationTask.execute(str_destination);
-                    // Send coordinates to NaviActivity to start navigation
-
+                    if (dest_text.length() == 0) {
+                        // If no destination entered then tell user
+                        Toast.makeText(EntranceActivity.this,
+                                R.string.noDestinationEntered, Toast.LENGTH_SHORT)
+                                .show();
+                    } else {
+                        // Start asyc SearchDestinationTask to get coordinates from geocoder
+                        SearchDestinationTask destinationTask = new SearchDestinationTask();
+                        destinationTask.execute(dest_text);
+                    }
+                }else {
+                    // Create an Intent to start the NaviActivity and hereby the
+                    // navigation
+                    Intent intent = new Intent(EntranceActivity.this,
+                            NaviActivity.class);
+                    intent.putExtra("str_currentLocation", str_currentLocation);
+                    intent.putExtra("str_destination", str_destination);
+                    intent.putExtra("destination_lat", destination_coords[0]);
+                    intent.putExtra("destination_lng", destination_coords[1]);
+                    intent.putExtra("routeOptions", getRouteOptions());
+                    startActivity(intent);
                 }
             }
         });
@@ -197,20 +223,49 @@ public class EntranceActivity extends ActionBarActivity {
                 destination_coords = new double[] { result.getLatitude(),
                         result.getLongitude() };
 
-                /*
-                // Create the destination overlay
-                addDestinationOverlay(result);
+                // Update the button text to Go
 
-                // If the route has been calculated before change the text
-                // of the button so the route has to be calculated again and
-                // clear the route from the RouteManager
-                if (btn_calculate.getText() == getResources().getString(
-                        R.string.start)) {
-                    btn_calculate.setText(R.string.calculate);
-                    rm.clearRoute();
-                }
+
+                /*
+                    // Create the destination overlay
+                    addDestinationOverlay(result);
+
+                    // If the route has been calculated before change the text
+                    // of the button so the route has to be calculated again and
+                    // clear the route from the RouteManager
+                    if (btn_calculate.getText() == getResources().getString(
+                            R.string.start)) {
+                        btn_calculate.setText(R.string.calculate);
+                        rm.clearRoute();
+                    }
                 */
             }
         }
+    }
+
+    /**
+     * Setup the route options and return them
+     *
+     * @return Route options as String
+     */
+    private String getRouteOptions() {
+        JSONObject options = new JSONObject();
+
+        try {
+            // Set the units to kilometers
+            String unit = "m";
+            options.put("unit", unit);
+
+            // Set the route type
+            options.put("routeType", routeType);
+
+            // Set the output shape format
+            String outShapeFormat = "raw";
+            options.put("outShapeFormat", outShapeFormat);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return options.toString();
     }
 }
