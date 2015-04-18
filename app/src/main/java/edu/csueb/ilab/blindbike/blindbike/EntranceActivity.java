@@ -35,6 +35,9 @@ public class EntranceActivity extends ActionBarActivity {
      */
     private double[] destination_coords;
 
+    // True if location available, false otherwise
+    private boolean location_available;
+
     private String str_currentLocation;
 
     private String str_destination;
