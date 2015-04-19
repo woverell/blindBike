@@ -6,6 +6,8 @@
     <string name="action_settings">Settings</string>
 
     <string name="destination_title_text">Destination</string>
+    <string name="start">GO</string>
+    <string name="calculate">GET</string>
     <string name="help_button_text">HELP</string>
     <string name="options_button_text">options</string>
     <string name="abort_button_text">ABORT</string>
@@ -13,7 +15,6 @@
 
     <string name="aboutPage">https://github.com/mrunde/Bachelor-Thesis/wiki/About</string><string name="helpPage">https://github.com/mrunde/Bachelor-Thesis/wiki/Help</string><string name="search">Search</string>
     <string name="destination_hint">Your destination</string>
-    <string name="calculate">GET</string>
     <string name="noDestinationEntered">Please enter a destination first and click on Search.</string>
     <string name="noDestinationFound">No destination could be found. Please try another one.</string>
     <string name="noLocationFound">No location could be found. Please try again when location available</string>
@@ -30,7 +31,7 @@
 
     <string name="routeType">Please select a route type</string>
 
-    <string name="start">GO</string>
+
     <string name="routeNotCalculated">Route could not be calculated. Please try again or use another destination.</string><string name="routeNotCalculated_500">Route could not be calculated. Please change your destination. If you are using the pedestrian route type, please use a closer destination.</string>
     <string name="routeCalculated">Route has been calculated successfully.</string>
     <string name="jsonImportNotSuccessful">The guidance information could not be imported. Please try again.</string><string name="gpsDisabled">GPS is disabled</string>
