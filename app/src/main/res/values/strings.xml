@@ -16,6 +16,7 @@
     <string name="calculate">GET</string>
     <string name="noDestinationEntered">Please enter a destination first and click on Search.</string>
     <string name="noDestinationFound">No destination could be found. Please try another one.</string>
+    <string name="noLocationFound">No location could be found. Please try again when location available</string>
 
     <string name="menu_routeTypes">Change route type</string><string name="menu_help">Help</string><string name="menu_about">About</string>
 

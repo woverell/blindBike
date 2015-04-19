@@ -12,7 +12,8 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:layout_weight="3"
-        tools:context=".EntranceBBActivity">
+        tools:context=".EntranceBBActivity"
+        android:weightSum="1">
 
         <TextView
             android:layout_width="match_parent"
@@ -28,10 +29,11 @@
             android:id="@+id/destinationEditText"
             android:shadowColor="#ff000000"
             android:background="@color/destination_edit_text_color"
-            android:textSize="40sp"
-            android:textIsSelectable="true"
-            android:minLines="2"
-            android:text="@string/sample_destination_text" />
+            android:textSize="35sp"
+            android:text="@string/sample_destination_text"
+            android:inputType="text"
+            android:hint="Location"
+            android:layout_weight="0.30"/>
 
         <Button
             android:layout_width="wrap_content"
@@ -52,7 +54,7 @@
         <Button
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:text="@string/calculate"
+            android:text="@string/start"
             android:id="@+id/goButton"
             android:layout_weight="1"
             android:textSize="50sp"

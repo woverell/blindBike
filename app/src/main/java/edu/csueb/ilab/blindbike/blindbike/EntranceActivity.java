@@ -1,6 +1,7 @@
 package edu.csueb.ilab.blindbike.blindbike;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.location.Address;
@@ -15,6 +16,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -37,6 +39,12 @@ public class EntranceActivity extends ActionBarActivity {
      * Coordinates of the destination to be sent to the NaviActivity
      */
     private double[] destination_coords;
+
+    // True if location available, False otherwise
+    private boolean location_available;
+
+    // True if destination available, False otherwise
+    private boolean destination_available;
 
     private Location currentLocation;
 
@@ -71,6 +79,7 @@ public class EntranceActivity extends ActionBarActivity {
         locationListener = new LocationListener() {
             public void onLocationChanged(Location location) {
                 // Called when a new location is found by the network location provider.
+                location_available = true;
                 currentLocation = location;
             }
 
@@ -90,6 +99,8 @@ public class EntranceActivity extends ActionBarActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        location_available = false; // since the app just resumed there will be no location
+        destination_available = false; // no destination will be set when app resumes
 
         // Register the listener with the Location Manager to receive location updates
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
@@ -118,6 +129,48 @@ public class EntranceActivity extends ActionBarActivity {
     }
 
     /**
+     * This function will attempt to start the navigation activity
+     * If no location can be found or if the destination cannot
+     * be determined then it will use a Toast to inform the user
+     * that they need to wait for a location or re-enter a
+     * proper destination.
+     */
+    private void startNavigation(){
+        if (location_available && destination_available) {
+            // Stringify the destination coordinates
+            str_destination = stringifyCoords(destination_coords[0], destination_coords[1]);
+            // Get the current location
+            str_currentLocation = stringifyCoords(currentLocation.getLatitude(), currentLocation.getLongitude());
+            // Stop listening for gps
+            locationManager.removeUpdates(locationListener);
+
+            // Create an Intent to start the NaviActivity and hereby the
+            // navigation
+            Intent intent = new Intent(EntranceActivity.this,
+                    NaviActivity.class);
+            intent.putExtra("str_currentLocation", str_currentLocation);
+            intent.putExtra("str_destination", str_destination);
+            intent.putExtra("destination_lat", destination_coords[0]);
+            intent.putExtra("destination_lng", destination_coords[1]);
+            intent.putExtra("routeOptions", getRouteOptions());
+            startActivity(intent);
+        }
+        if(!destination_available){
+            Toast.makeText(EntranceActivity.this,
+                    R.string.noDestinationEntered, Toast.LENGTH_SHORT)
+                    .show();
+        }else if(!location_available){
+            Toast.makeText(EntranceActivity.this,
+                    R.string.noLocationFound, Toast.LENGTH_SHORT)
+                    .show();
+        }else{
+            Toast.makeText(EntranceActivity.this,
+                    R.string.routeNotCalculated, Toast.LENGTH_SHORT)
+                    .show();
+        }
+    }
+
+    /**
      * Sets up the GUI elements
      */
     private void setupGUI(){
@@ -127,39 +180,18 @@ public class EntranceActivity extends ActionBarActivity {
         button_go.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(button_go.getText() == getResources().getString(
-                        R.string.calculate)) {
-                    // Get the entered destination
-                    String dest_text = edit_destination.getText().toString();
+                // Get the entered destination
+                String dest_text = edit_destination.getText().toString();
 
-                    if (dest_text.length() == 0) {
-                        // If no destination entered then tell user
-                        Toast.makeText(EntranceActivity.this,
-                                R.string.noDestinationEntered, Toast.LENGTH_SHORT)
-                                .show();
-                    } else {
-                        // Start asyc SearchDestinationTask to get coordinates from geocoder
-                        SearchDestinationTask destinationTask = new SearchDestinationTask();
-                        destinationTask.execute(dest_text);
-                    }
-                }else {
-                    // Stringify the destination coordinates
-                    str_destination = stringifyCoords(destination_coords[0], destination_coords[1]);
-                    // Get the current location
-                    str_currentLocation = stringifyCoords(currentLocation.getLatitude(), currentLocation.getLongitude());
-                    // Stop listening for gps
-                    locationManager.removeUpdates(locationListener);
-
-                    // Create an Intent to start the NaviActivity and hereby the
-                    // navigation
-                    Intent intent = new Intent(EntranceActivity.this,
-                            NaviActivity.class);
-                    intent.putExtra("str_currentLocation", str_currentLocation);
-                    intent.putExtra("str_destination", str_destination);
-                    intent.putExtra("destination_lat", destination_coords[0]);
-                    intent.putExtra("destination_lng", destination_coords[1]);
-                    intent.putExtra("routeOptions", getRouteOptions());
-                    startActivity(intent);
+                if (dest_text.length() == 0) {
+                    // If no destination entered then tell user
+                    Toast.makeText(EntranceActivity.this,
+                            R.string.noDestinationEntered, Toast.LENGTH_SHORT)
+                            .show();
+                } else {
+                    // Start asyc SearchDestinationTask to get coordinates from geocoder
+                    SearchDestinationTask destinationTask = new SearchDestinationTask();
+                    destinationTask.execute(dest_text);
                 }
             }
         });
@@ -264,9 +296,11 @@ public class EntranceActivity extends ActionBarActivity {
                 destination_coords = new double[] { result.getLatitude(),
                         result.getLongitude() };
 
-                // Update the button text to Start
-                button_go.setText(R.string.start);
+                destination_available = true;
             }
+
+            // Start Navigation Attempt
+            startNavigation();
         }
     }
 
