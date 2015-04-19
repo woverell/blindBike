@@ -5,6 +5,9 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.location.Address;
 import android.location.Geocoder;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -35,8 +38,11 @@ public class EntranceActivity extends ActionBarActivity {
      */
     private double[] destination_coords;
 
-    // True if location available, false otherwise
-    private boolean location_available;
+    private Location currentLocation;
+
+    private LocationManager locationManager;
+
+    private LocationListener locationListener;
 
     private String str_currentLocation;
 
@@ -58,12 +64,36 @@ public class EntranceActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_entrance_landscape);
 
+        // Acquire a reference to the system Location Manager
+        locationManager = (LocationManager) this.getSystemService(getApplicationContext().LOCATION_SERVICE);
+
+        // Define a listener that responds to location updates
+        locationListener = new LocationListener() {
+            public void onLocationChanged(Location location) {
+                // Called when a new location is found by the network location provider.
+                currentLocation = location;
+            }
+
+            public void onStatusChanged(String provider, int status, Bundle extras) {}
+
+            public void onProviderEnabled(String provider) {}
+
+            public void onProviderDisabled(String provider) {}
+        };
+
         // Set the route type to fastest
         this.routeType = getApplicationContext().getString(R.string.ROUTE_TYPE);
 
         setupGUI();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // Register the listener with the Location Manager to receive location updates
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -97,7 +127,8 @@ public class EntranceActivity extends ActionBarActivity {
         button_go.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(button_go.getText() == "") {
+                if(button_go.getText() == getResources().getString(
+                        R.string.calculate)) {
                     // Get the entered destination
                     String dest_text = edit_destination.getText().toString();
 
@@ -112,6 +143,13 @@ public class EntranceActivity extends ActionBarActivity {
                         destinationTask.execute(dest_text);
                     }
                 }else {
+                    // Stringify the destination coordinates
+                    str_destination = stringifyCoords(destination_coords[0], destination_coords[1]);
+                    // Get the current location
+                    str_currentLocation = stringifyCoords(currentLocation.getLatitude(), currentLocation.getLongitude());
+                    // Stop listening for gps
+                    locationManager.removeUpdates(locationListener);
+
                     // Create an Intent to start the NaviActivity and hereby the
                     // navigation
                     Intent intent = new Intent(EntranceActivity.this,
@@ -226,22 +264,8 @@ public class EntranceActivity extends ActionBarActivity {
                 destination_coords = new double[] { result.getLatitude(),
                         result.getLongitude() };
 
-                // Update the button text to Go
-
-
-                /*
-                    // Create the destination overlay
-                    addDestinationOverlay(result);
-
-                    // If the route has been calculated before change the text
-                    // of the button so the route has to be calculated again and
-                    // clear the route from the RouteManager
-                    if (btn_calculate.getText() == getResources().getString(
-                            R.string.start)) {
-                        btn_calculate.setText(R.string.calculate);
-                        rm.clearRoute();
-                    }
-                */
+                // Update the button text to Start
+                button_go.setText(R.string.start);
             }
         }
     }

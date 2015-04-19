@@ -51,8 +51,8 @@
 
         <Button
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/go_button_text"
+            android:layout_height="match_parent"
+            android:text="@string/calculate"
             android:id="@+id/goButton"
             android:layout_weight="1"
             android:textSize="50sp"
@@ -60,7 +60,7 @@
 
         <Button
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:text="@string/help_button_text"
             android:id="@+id/helpButton"
             android:layout_weight="1"
