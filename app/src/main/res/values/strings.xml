@@ -12,6 +12,7 @@
     <string name="options_button_text">options</string>
     <string name="abort_button_text">ABORT</string>
     <string name="sample_destination_text">Peets Coffee, Lafayette, CA</string>
+    <string name="reroute_button_text">REROUTE</string>
 
     <string name="aboutPage">https://github.com/mrunde/Bachelor-Thesis/wiki/About</string><string name="helpPage">https://github.com/mrunde/Bachelor-Thesis/wiki/Help</string><string name="search">Search</string>
     <string name="destination_hint">Your destination</string>

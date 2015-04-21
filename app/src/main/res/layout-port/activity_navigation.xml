@@ -22,7 +22,17 @@
         android:orientation="vertical"
         android:layout_weight="1"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"></LinearLayout>
+        android:layout_height="match_parent">
+
+        <Button
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:text="@string/reroute_button_text"
+            android:id="@+id/rerouteButton"
+            android:layout_gravity="center_horizontal"
+            android:background="@color/BLUE"
+            android:textSize="40sp" />
+    </LinearLayout>
 
     <LinearLayout
         android:orientation="vertical"
