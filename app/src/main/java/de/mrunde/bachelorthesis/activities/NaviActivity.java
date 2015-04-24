@@ -229,8 +229,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.navi);
-
+        if(getResources().getBoolean(R.bool.DEVELOPMENT_MODE)) {
+            setContentView(R.layout.navi_test);
+        }else
+        {
+            setContentView(R.layout.navi);
+        }
 		// Get the route information from the intent
 		Intent intent = getIntent();
 		this.str_currentLocation = intent.getStringExtra("str_currentLocation");
@@ -261,7 +265,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		setupMapView();
 		setupMyLocation();
 
-		// Add the destination overlay to the map
+		// Add the destination overlay to the map(puts flag on map)
 		addDestinationOverlay(destination_lat, destination_lng);
 
 		// Calculate the route
@@ -284,7 +288,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private void setupMapView() {
 		this.map = (MapView) findViewById(R.id.map);
-		map.setBuiltInZoomControls(false);
+		map.setBuiltInZoomControls(true); // WILLIAM: Toggling to see difference
 		map.setClickable(false);
 		map.setLongClickable(false);
 	}
@@ -797,6 +801,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			Log.v("NaviActivity.onLocationChanged", distancesString);
 
 			// Check the distances with the stored ones
+            // CASE 1: This is the handle when we can get close to
+            // our decision point like on city roads, but not
+            // highways where you merge off
 			if (distanceDP1 < MAX_DISTANCE_TO_DECISION_POINT) {
 				// Distance to decision point is less than
 				// MAX_DISTANCE_TO_DECISION_POINT
@@ -836,12 +843,15 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			}
 
 			// Check if the whole guidance needs to be reloaded due to a driving
-			// error (user seems to go away from both the decision point and the
-			// decision point after next)
+            // error (user seems to go away from both the decision point and the
+            // decision point after next)
 			if (distanceCounter < (-1 * MAX_COUNTER_VALUE)) {
 				updateGuidance();
 			}
 			// Check if the instruction needs to be updated
+            // CASE 1 Extended: This handles the case where we are merging off like
+            // a highway where we can't get exactly close to decision
+            // point 1
 			if (distanceCounter > MAX_COUNTER_VALUE) {
 				updateInstruction();
 			}

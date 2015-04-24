@@ -4,6 +4,8 @@
 
     <string name="ROUTE_TYPE">fastest</string>
 
+    <bool name="DEVELOPMENT_MODE">false</bool>
+
     <integer name="MAX_RESULTS">5</integer>
 
 </resources>
