@@ -187,9 +187,16 @@ public class EntranceActivity extends ActionBarActivity {
                             R.string.noDestinationEntered, Toast.LENGTH_SHORT)
                             .show();
                 } else {
+                    /*
                     // Start asyc SearchDestinationTask to get coordinates from geocoder
                     SearchDestinationTask destinationTask = new SearchDestinationTask();
                     destinationTask.execute(dest_text);
+                    */
+                    // Set destination coordinates
+                    SearchDestination(dest_text);
+
+                    // Start Navigation Attempt
+                    startNavigation();
                 }
             }
         });
@@ -204,6 +211,57 @@ public class EntranceActivity extends ActionBarActivity {
      */
     private String stringifyCoords(double latitude, double longitude){
         return "{latLng:{lat:" + latitude + ",lng:" + longitude + "}}";
+    }
+
+    private void SearchDestination(String... dest_text){
+        String str_destination = dest_text[0];
+        List<Address> addresses;
+        try {
+            // Create a geocoder to locate the destination
+            Geocoder geocoder = new Geocoder(EntranceActivity.this,
+                    Locale.getDefault());
+            addresses = geocoder.getFromLocationName(str_destination,
+                    R.integer.MAX_RESULTS);
+            // Destination could be located
+            Log.d("MainActivity", "Located destination sucessfully.");
+            GeoPoint result = new GeoPoint(addresses.get(0).getLatitude(),
+                    addresses.get(0).getLongitude());
+            // Store result in dest_coords
+            destination_coords = new double[] { result.getLatitude(),
+                    result.getLongitude() };
+
+            destination_available = true;
+        } catch (IOException e1) {
+            // Destination could not be located but try again once
+            // because sometimes it works at the second try
+            Log.d("EntranceActivity",
+                    "First try to locate destination failed. Starting second try...");
+            try {
+                // Create a geocoder to locate the destination
+                Geocoder geocoder = new Geocoder(EntranceActivity.this,
+                        Locale.getDefault());
+                addresses = geocoder.getFromLocationName(str_destination,
+                        R.integer.MAX_RESULTS);
+                // Destination could be located
+                Log.d("MainActivity", "Located destination sucessfully.");
+                GeoPoint result = new GeoPoint(addresses.get(0).getLatitude(),
+                        addresses.get(0).getLongitude());
+                // Store result in dest_coords
+                destination_coords = new double[]{result.getLatitude(),
+                        result.getLongitude()};
+
+                destination_available = true;
+            } catch (IOException e2) {
+                // Seems like the destination could really not be
+                // found, so send the user a message about the error
+                Log.e("EntranceActivity",
+                        "IO Exception in searching for destination. This is the error message: "
+                                + e2.getMessage());
+                Toast.makeText(EntranceActivity.this,
+                        R.string.noDestinationFound, Toast.LENGTH_SHORT)
+                        .show();
+            }
+        }
     }
 
     /**
