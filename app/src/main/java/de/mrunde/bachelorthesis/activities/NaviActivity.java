@@ -43,6 +43,8 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -105,6 +107,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 * An overlay to display the user's location
 	 */
 	private MyLocationOverlay myLocationOverlay;
+
+    // Reroute Button
+    private Button reroute_button;
 
 	// --- End of GUI ---
 
@@ -281,6 +286,14 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private void setupGUI() {
 		this.tv_instruction = (TextView) findViewById(R.id.tv_instruction);
 		this.iv_instruction = (ImageView) findViewById(R.id.iv_instruction);
+        this.reroute_button = (Button) findViewById(R.id.reroute_button);
+        reroute_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // Call updateGuidance to restart the activity
+                updateGuidance();
+            }
+        });
 	}
 
 	/**
@@ -344,7 +357,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				map.getController().animateTo(currentLocation);
 				map.getController().setZoom(18);
 				map.getOverlays().add(myLocationOverlay);
-				myLocationOverlay.setFollowing(true);
+				myLocationOverlay.setFollowing(true); // WILLIAM: This should set the map to follow the user
 			}
 		});
 	}
@@ -764,6 +777,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		double lat = location.getLatitude();
 		double lng = location.getLongitude();
 
+		// Update Current Location
+		str_currentLocation = stringifyCoords(lat,lng);
+
 		// Check if the instruction manager has been initialized already
 		if (im != null) {
 			// Get the coordinates of the next decision point
@@ -798,7 +814,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 					+ " | distanceDP1: " + distanceDP1 + " | LastDistanceDP2: "
 					+ lastDistanceDP2 + " | distanceDP2: " + distanceDP2;
 			debugger += distancesString + "\n";
-			Log.v("NaviActivity.onLocationChanged", distancesString);
+			Log.v("Navi.onLocationChanged", distancesString);
 
 			// Check the distances with the stored ones
             // CASE 1: This is the handle when we can get close to
@@ -827,7 +843,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 				String logMessage = "distanceCounter: " + distanceCounter;
 				debugger += logMessage + "\n";
-				Log.v("NaviActivity.onLocationChanged", logMessage);
+				Log.v("Navi.onLocationChanged", logMessage);
 			} else if (distanceDP1 > lastDistanceDP1
 					&& distanceDP2 > lastDistanceDP2) {
 				// Distance to the next decision point and the decision point
@@ -839,7 +855,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				String logMessage = "distanceIncreaseCounter: "
 						+ distanceCounter;
 				debugger += logMessage + "\n";
-				Log.v("NaviActivity.onLocationChanged", logMessage);
+				Log.v("Navi.onLocationChanged", logMessage);
 			}
 
 			// Check if the whole guidance needs to be reloaded due to a driving
@@ -856,6 +872,17 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				updateInstruction();
 			}
 		}
+	}
+
+	/**
+	 * This function takes a latitude and longitude value and creates a string
+	 * that mapquest knows how to read.
+	 * @param latitude
+	 * @param longitude
+	 * @return String containing lat/long that mapquest can read
+	 */
+	private String stringifyCoords(double latitude, double longitude){
+		return "{latLng:{lat:" + latitude + ",lng:" + longitude + "}}";
 	}
 
 	@Override
@@ -1001,8 +1028,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		tts.setSpeechRate((float) 1);
 		tts.speak("Updating guidance", TextToSpeech.QUEUE_FLUSH, null);
 
+		// update the intent with the most recent location
+		Intent updatedIntent = getIntent();
+		updatedIntent.putExtra("str_currentLocation", str_currentLocation);
+
 		// Restart the activity
 		finish();
-		startActivity(getIntent());
+		startActivity(updatedIntent);
 	}
 }

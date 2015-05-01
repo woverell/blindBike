@@ -20,7 +20,7 @@
             android:textAppearance="?android:attr/textAppearanceLarge"
             android:text="@string/destination_title_text"
             android:id="@+id/destinationTitle"
-            android:textSize="65sp" />
+            android:textSize="63sp" />
 
         <EditText
             android:layout_width="match_parent"
@@ -28,10 +28,10 @@
             android:id="@+id/destinationEditText"
             android:shadowColor="#ff000000"
             android:background="@color/destination_edit_text_color"
-            android:textSize="40sp"
-            android:textIsSelectable="true"
-            android:minLines="3"
-            android:text="@string/sample_destination_text" />
+            android:textSize="35sp"
+            android:text="@string/sample_destination_text"
+            android:inputType="text"
+            android:hint="Location"/>
 
         <Button
             android:layout_width="wrap_content"
