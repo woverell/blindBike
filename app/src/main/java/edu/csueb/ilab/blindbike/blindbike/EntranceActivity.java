@@ -193,7 +193,20 @@ public class EntranceActivity extends ActionBarActivity {
                 }
             }
         });
+
+        this.button_help=(Button) findViewById(R.id.helpButton);
+        button_help.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // Get the entered destination
+
+                Intent intent=new Intent(view.getContext(),ImagePreview.class);
+                startActivity(intent);
+
+            }
+        });
     }
+
 
     /**
      * This function takes a latitude and longitude value and creates a string
