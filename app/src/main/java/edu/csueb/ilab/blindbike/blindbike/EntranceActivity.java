@@ -200,7 +200,7 @@ public class EntranceActivity extends ActionBarActivity {
             public void onClick(View view) {
                 // Get the entered destination
 
-                Intent intent=new Intent(view.getContext(),ImagePreview.class);
+                Intent intent=new Intent(view.getContext(),Navi_Test.class);
                 startActivity(intent);
 
             }

@@ -1,7 +1,9 @@
 package edu.csueb.ilab.blindbike.blindbike;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Fragment;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -11,6 +13,7 @@ import android.view.ViewGroup;
 /**
  * Created by Admin on 5/1/2015.
  */
+@TargetApi(Build.VERSION_CODES.HONEYCOMB)
 public class ImagePreview extends Fragment{
 
     public View onCreateView(LayoutInflater inflater,
