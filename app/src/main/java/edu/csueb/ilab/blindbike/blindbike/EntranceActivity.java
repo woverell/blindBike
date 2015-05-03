@@ -202,7 +202,7 @@ public class EntranceActivity extends ActionBarActivity {
      * @param longitude
      * @return String containing lat/long that mapquest can read
      */
-    private String stringifyCoords(double latitude, double longitude){
+    public static String stringifyCoords(double latitude, double longitude){
         return "{latLng:{lat:" + latitude + ",lng:" + longitude + "}}";
     }
 

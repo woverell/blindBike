@@ -366,6 +366,18 @@ public class InstructionManager {
 	}
 
 	/**
+	 * Returns true/false if on last instruction or not
+	 * @return true if on last instruction else false
+	 */
+	public boolean isOnLastInstruction(){
+		if(this.instructions.size() - 1 == this.currentInstruction){
+			return true;
+		}else{
+			return false;
+		}
+	}
+
+	/**
 	 * Create the instructions from the route information
 	 */
 	public void createInstructions() {

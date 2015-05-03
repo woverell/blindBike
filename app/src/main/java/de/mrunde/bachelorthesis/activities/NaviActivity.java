@@ -59,7 +59,8 @@ import com.mapquest.android.maps.OverlayItem;
 import com.mapquest.android.maps.RouteManager;
 import com.mapquest.android.maps.RouteResponse;
 
-//import de.mrunde.bachelorthesis.R;
+import de.mrunde.bachelorthesis.instructions.DistanceInstruction;
+import edu.csueb.ilab.blindbike.blindbike.EntranceActivity;
 import edu.csueb.ilab.blindbike.blindbike.R;
 import de.mrunde.bachelorthesis.basics.Landmark;
 import de.mrunde.bachelorthesis.basics.LandmarkCategory;
@@ -288,12 +289,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		this.iv_instruction = (ImageView) findViewById(R.id.iv_instruction);
         this.reroute_button = (Button) findViewById(R.id.reroute_button);
         reroute_button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // Call updateGuidance to restart the activity
-                updateGuidance();
-            }
-        });
+			@Override
+			public void onClick(View view) {
+				// Call updateGuidance to restart the activity
+				updateGuidance();
+			}
+		});
 	}
 
 	/**
@@ -778,7 +779,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		double lng = location.getLongitude();
 
 		// Update Current Location
-		str_currentLocation = stringifyCoords(lat,lng);
+		str_currentLocation = EntranceActivity.stringifyCoords(lat, lng);
 
 		// Check if the instruction manager has been initialized already
 		if (im != null) {
@@ -788,9 +789,21 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			double dp1Lng = im.getCurrentInstruction().getDecisionPoint()
 					.getLongitude();
 
+			double dp2Lat = 0;
+			double dp2Lng = 0;
+			if(im.isOnLastInstruction()){
+				// WILLIAM: I don't know right now
+				dp2Lat = dp1Lat;
+				dp2Lng = dp1Lng;
+				//return;
+			}else{
+				// Get the coordinates of the decision point after next
+				dp2Lat = im.getNextInstructionLocation().getLatitude();
+				dp2Lng = im.getNextInstructionLocation().getLongitude();
+			}
 			// Get the coordinates of the decision point after next
-			double dp2Lat = im.getNextInstructionLocation().getLatitude();
-			double dp2Lng = im.getNextInstructionLocation().getLongitude();
+			//double dp2Lat = im.getNextInstructionLocation().getLatitude();
+			//double dp2Lng = im.getNextInstructionLocation().getLongitude();
 
 			// Calculate the distance to the next decision point
 			float[] results = new float[1];
@@ -823,6 +836,13 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			if (distanceDP1 < MAX_DISTANCE_TO_DECISION_POINT) {
 				// Distance to decision point is less than
 				// MAX_DISTANCE_TO_DECISION_POINT
+
+				if(im.isOnLastInstruction()){
+					// Tell User they have arrived and stop navigation
+					haveArrivedInstruction();
+					stopNavigation();
+					return;
+				}
 				updateInstruction();
 			} else if (distanceDP1 < DISTANCE_FOR_NOW_INSTRUCTION
 					&& nowInstructionUsed == true) {
@@ -869,20 +889,15 @@ public class NaviActivity extends MapActivity implements OnInitListener,
             // a highway where we can't get exactly close to decision
             // point 1
 			if (distanceCounter > MAX_COUNTER_VALUE) {
+				if(im.isOnLastInstruction()){
+					// Tell User they have arrived and stop navigation
+					haveArrivedInstruction();
+					stopNavigation();
+					return;
+				}
 				updateInstruction();
 			}
 		}
-	}
-
-	/**
-	 * This function takes a latitude and longitude value and creates a string
-	 * that mapquest knows how to read.
-	 * @param latitude
-	 * @param longitude
-	 * @return String containing lat/long that mapquest can read
-	 */
-	private String stringifyCoords(double latitude, double longitude){
-		return "{latLng:{lat:" + latitude + ",lng:" + longitude + "}}";
 	}
 
 	@Override
@@ -920,6 +935,32 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// Get the next instruction and display it
 		Instruction nextInstruction = im.getNextInstruction();
 		displayInstruction(nextInstruction);
+
+	}
+
+	private void haveArrivedInstruction(){
+		// WILLIAM: Create new instance of class Instruction that says we have arrived
+		//Instruction i = new Instruction(im.getCurrentInstruction().getDecisionPoint() ,24);
+		Instruction i = new DistanceInstruction(im.getCurrentInstruction().getDecisionPoint(),24, (int) lastDistanceDP1);
+
+		// Reset the distances, their counters, and the NowInstruction
+		// controllers
+		lastDistanceDP1 = 0;
+		lastDistanceDP2 = 0;
+		distanceCounter = 0;
+		nowInstructionChecked = false;
+		nowInstructionUsed = false;
+
+		displayInstruction(i);
+	}
+
+	private void stopNavigation(){
+		// This is where we have to close down the navigation and have to leave the GUI
+		// in a state that shows they have arrived
+		// Because once we start the opencv stuff we have to tell opencv to stop taking pictures
+		// Possibility: Go back to previous activity, but let user know they have arrived (count 30 seconds then go back?)
+		// Possibility: Turn off opencv and then they have to hit a button to go back to previous activity
+		finish();
 	}
 
 	/**
