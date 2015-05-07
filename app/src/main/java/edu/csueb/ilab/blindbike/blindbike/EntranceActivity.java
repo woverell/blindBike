@@ -152,19 +152,20 @@ public class EntranceActivity extends ActionBarActivity {
             intent.putExtra("destination_lng", destination_coords[1]);
             intent.putExtra("routeOptions", getRouteOptions());
             startActivity(intent);
-        }
-        if(!destination_available){
-            Toast.makeText(EntranceActivity.this,
-                    R.string.noDestinationEntered, Toast.LENGTH_SHORT)
-                    .show();
-        }else if(!location_available){
-            Toast.makeText(EntranceActivity.this,
-                    R.string.noLocationFound, Toast.LENGTH_SHORT)
-                    .show();
-        }else{
-            Toast.makeText(EntranceActivity.this,
-                    R.string.routeNotCalculated, Toast.LENGTH_SHORT)
-                    .show();
+        }else {
+            if (!destination_available) {
+                Toast.makeText(EntranceActivity.this,
+                        R.string.noDestinationEntered, Toast.LENGTH_SHORT)
+                        .show();
+            } else if (!location_available) {
+                Toast.makeText(EntranceActivity.this,
+                        R.string.noLocationFound, Toast.LENGTH_SHORT)
+                        .show();
+            } else {
+                Toast.makeText(EntranceActivity.this,
+                        R.string.routeNotCalculated, Toast.LENGTH_SHORT)
+                        .show();
+            }
         }
     }
 

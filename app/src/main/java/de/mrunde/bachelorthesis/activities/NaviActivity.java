@@ -39,6 +39,8 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.TextToSpeech.OnInitListener;
+import android.app.DialogFragment;
+import android.app.FragmentManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -960,7 +962,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// Because once we start the opencv stuff we have to tell opencv to stop taking pictures
 		// Possibility: Go back to previous activity, but let user know they have arrived (count 30 seconds then go back?)
 		// Possibility: Turn off opencv and then they have to hit a button to go back to previous activity
-		finish();
+
+		showDialog();
 	}
 
 	/**
@@ -1076,5 +1079,21 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// Restart the activity
 		finish();
 		startActivity(updatedIntent);
+	}
+
+	void showDialog() {
+		DialogFragment newFragment = NaviDialogue
+				.newInstance(R.string.navi_dialogue_text);
+		newFragment.show(getFragmentManager(), "dialog");
+	}
+
+	public void doPositiveClick() {
+		finish(); // End the activity
+		Log.i("NaviActivity", "Positive click!");
+	}
+
+	public void doNegativeClick() {
+		updateGuidance(); // Perform reroute from current location
+		Log.i("NaviActivity", "Negative click!");
 	}
 }
