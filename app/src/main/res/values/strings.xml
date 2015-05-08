@@ -43,4 +43,8 @@
     <string name="closeActivity_title">Stopping Navigation</string><string name="closeActivity_message">Are you sure you want to stop the navigation?</string>
     <string name="allInstructions">All route instructions</string>
 
+    <string name="navi_dialogue_text">You have arrived at your destination!</string>
+    <string name="navi_dialogue_okbutton_text">OK</string>
+    <string name="navi_dialogue_reroutebutton_text">REROUTE</string>
+
 </resources>

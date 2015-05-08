@@ -152,18 +152,13 @@ public class EntranceActivity extends ActionBarActivity {
             intent.putExtra("destination_lng", destination_coords[1]);
             intent.putExtra("routeOptions", getRouteOptions());
             startActivity(intent);
-        }
-        if(!destination_available){
+        }else if(!destination_available){
             Toast.makeText(EntranceActivity.this,
                     R.string.noDestinationEntered, Toast.LENGTH_SHORT)
                     .show();
-        }else if(!location_available){
-            Toast.makeText(EntranceActivity.this,
-                    R.string.noLocationFound, Toast.LENGTH_SHORT)
-                    .show();
         }else{
             Toast.makeText(EntranceActivity.this,
-                    R.string.routeNotCalculated, Toast.LENGTH_SHORT)
+                    R.string.noLocationFound, Toast.LENGTH_SHORT)
                     .show();
         }
     }
@@ -215,7 +210,7 @@ public class EntranceActivity extends ActionBarActivity {
      * @param longitude
      * @return String containing lat/long that mapquest can read
      */
-    private String stringifyCoords(double latitude, double longitude){
+    public static String stringifyCoords(double latitude, double longitude){
         return "{latLng:{lat:" + latitude + ",lng:" + longitude + "}}";
     }
 
@@ -257,7 +252,7 @@ public class EntranceActivity extends ActionBarActivity {
                 Geocoder geocoder = new Geocoder(EntranceActivity.this,
                         Locale.getDefault());
                 addresses = geocoder.getFromLocationName(str_destination,
-                        R.integer.MAX_RESULTS);
+                        getApplicationContext().getResources().getInteger(R.integer.MAX_RESULTS));
             } catch (IOException e1) {
                 // Destination could not be located but try again once
                 // because sometimes it works at the second try
