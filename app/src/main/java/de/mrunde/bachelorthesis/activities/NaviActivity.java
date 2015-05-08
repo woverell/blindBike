@@ -187,6 +187,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private final int MAX_DISTANCE_TO_DECISION_POINT = 32;
 
+	private boolean beenWithinNodeWindow = false;
+
 	/**
 	 * Store the last distance between the next decision point and the current
 	 * location. Is set to 0 when the instruction is updated.
@@ -809,6 +811,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			float[] results = new float[1];
 			Location.distanceBetween(lat, lng, dp1Lat, dp1Lng, results);
 			double distanceDP1 = results[0];
+			if(lastDistanceDP1 == 0){
+				lastDistanceDP1 = distanceDP1;
+			}
 
 			// Check whether a now instruction must be used (only once for each
 			// route segment)
@@ -821,6 +826,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			// Calculate the distance to the decision point after next
 			Location.distanceBetween(lat, lng, dp2Lat, dp2Lng, results);
 			double distanceDP2 = results[0];
+			if(lastDistanceDP2 == 0){
+				lastDistanceDP2 = distanceDP2;
+			}
 
 			// Log the distances
 			String distancesString = "LastDistanceDP1: " + lastDistanceDP1
@@ -829,6 +837,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			debugger += distancesString + "\n";
 			Log.v("Navi.onLocationChanged", distancesString);
 
+
+			// If we have been within NODE_WINDOW_DISTANCE
+			// of the next node
+			if(distanceDP1 < getApplicationContext().getResources().getInteger(R.integer.NODE_WINDOW_DISTANCE)){
+				beenWithinNodeWindow = true;
+			}
 			// Check the distances with the stored ones
             // CASE 1: This is the handle when we can get close to
             // our decision point like on city roads, but not
@@ -854,22 +868,23 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				// instruction is only used once
 				nowInstructionUsed = false;
 			} else if (distanceDP1 > lastDistanceDP1
-					&& distanceDP2 < lastDistanceDP2) {
+					&& distanceDP2 < lastDistanceDP2
+					&& beenWithinNodeWindow) {
 				// The distance to the next decision point has increased and the
-				// distance to the decision point after next has decreased
-				lastDistanceDP1 = distanceDP1;
-				lastDistanceDP2 = distanceDP2;
+				// distance to the decision point after next has decreased and
+				// user has been within the node window
+				//lastDistanceDP1 = distanceDP1;
+				//lastDistanceDP2 = distanceDP2;
 				distanceCounter++;
 
 				String logMessage = "distanceCounter: " + distanceCounter;
 				debugger += logMessage + "\n";
 				Log.v("Navi.onLocationChanged", logMessage);
-			} else if (distanceDP1 > lastDistanceDP1
-					&& distanceDP2 > lastDistanceDP2) {
+			} else if (distanceDP1 > lastDistanceDP1) {
 				// Distance to the next decision point and the decision point
 				// after next has increased (can lead to a driving error)
-				lastDistanceDP1 = distanceDP1;
-				lastDistanceDP2 = distanceDP2;
+				//lastDistanceDP1 = distanceDP1;
+				//lastDistanceDP2 = distanceDP2;
 				distanceCounter--;
 
 				String logMessage = "distanceIncreaseCounter: "
@@ -877,6 +892,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				debugger += logMessage + "\n";
 				Log.v("Navi.onLocationChanged", logMessage);
 			}
+
+			// Update the last distances
+			lastDistanceDP1 = distanceDP1;
+			lastDistanceDP2 = distanceDP2;
 
 			// Check if the whole guidance needs to be reloaded due to a driving
             // error (user seems to go away from both the decision point and the
@@ -931,6 +950,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		distanceCounter = 0;
 		nowInstructionChecked = false;
 		nowInstructionUsed = false;
+		beenWithinNodeWindow = false;
 
 		// Get the next instruction and display it
 		Instruction nextInstruction = im.getNextInstruction();
