@@ -962,7 +962,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 	private void haveArrivedInstruction(){
 		// WILLIAM: Create new instance of class Instruction that says we have arrived
-		//Instruction i = new Instruction(im.getCurrentInstruction().getDecisionPoint() ,24);
+		// Instruction i = new Instruction(im.getCurrentInstruction().getDecisionPoint() ,24);
 		Instruction i = new DistanceInstruction(im.getCurrentInstruction().getDecisionPoint(),24, (int) lastDistanceDP1);
 
 		// Reset the distances, their counters, and the NowInstruction
@@ -1107,11 +1107,17 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		newFragment.show(getFragmentManager(), "dialog");
 	}
 
+	/*
+	This is called when the user clicks the ok button of the NaviDialogue
+	 */
 	public void doPositiveClick() {
 		finish(); // End the activity
 		Log.i("NaviActivity", "Positive click!");
 	}
 
+	/*
+	This is called when the user clicks the reroute button of the NaviDialogue
+	 */
 	public void doNegativeClick() {
 		updateGuidance(); // Perform reroute from current location
 		Log.i("NaviActivity", "Negative click!");
