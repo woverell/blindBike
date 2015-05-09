@@ -97,7 +97,7 @@ public abstract class Maneuver {
 			"Transfer to a public transit bus or rail line",
 			"Enter a public transit bus or rail station",
 			"Exit a public transit bus or rail station",
-			"Remain on the current bus/rail car" /* 39 */
+			"Remain on the current bus/rail car", /* 39 */
 	};
 
 	/**

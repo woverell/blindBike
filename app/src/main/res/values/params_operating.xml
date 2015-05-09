@@ -8,4 +8,6 @@
 
     <integer name="MAX_RESULTS">5</integer>
 
+    <integer name="NODE_WINDOW_DISTANCE">100</integer>
+
 </resources>

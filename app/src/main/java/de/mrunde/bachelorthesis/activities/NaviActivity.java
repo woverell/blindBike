@@ -39,6 +39,8 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.TextToSpeech.OnInitListener;
+import android.app.DialogFragment;
+import android.app.FragmentManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -59,7 +61,8 @@ import com.mapquest.android.maps.OverlayItem;
 import com.mapquest.android.maps.RouteManager;
 import com.mapquest.android.maps.RouteResponse;
 
-//import de.mrunde.bachelorthesis.R;
+import de.mrunde.bachelorthesis.instructions.DistanceInstruction;
+import edu.csueb.ilab.blindbike.blindbike.EntranceActivity;
 import edu.csueb.ilab.blindbike.blindbike.R;
 import de.mrunde.bachelorthesis.basics.Landmark;
 import de.mrunde.bachelorthesis.basics.LandmarkCategory;
@@ -186,6 +189,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private final int MAX_DISTANCE_TO_DECISION_POINT = 32;
 
+	private boolean beenWithinNodeWindow = false;
+
 	/**
 	 * Store the last distance between the next decision point and the current
 	 * location. Is set to 0 when the instruction is updated.
@@ -288,12 +293,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		this.iv_instruction = (ImageView) findViewById(R.id.iv_instruction);
         this.reroute_button = (Button) findViewById(R.id.reroute_button);
         reroute_button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // Call updateGuidance to restart the activity
-                updateGuidance();
-            }
-        });
+			@Override
+			public void onClick(View view) {
+				// Call updateGuidance to restart the activity
+				updateGuidance();
+			}
+		});
 	}
 
 	/**
@@ -778,7 +783,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		double lng = location.getLongitude();
 
 		// Update Current Location
-		str_currentLocation = stringifyCoords(lat,lng);
+		str_currentLocation = EntranceActivity.stringifyCoords(lat, lng);
 
 		// Check if the instruction manager has been initialized already
 		if (im != null) {
@@ -788,14 +793,29 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			double dp1Lng = im.getCurrentInstruction().getDecisionPoint()
 					.getLongitude();
 
+			double dp2Lat = 0;
+			double dp2Lng = 0;
+			if(im.isOnLastInstruction()){
+				// WILLIAM: I don't know right now
+				dp2Lat = dp1Lat;
+				dp2Lng = dp1Lng;
+				//return;
+			}else{
+				// Get the coordinates of the decision point after next
+				dp2Lat = im.getNextInstructionLocation().getLatitude();
+				dp2Lng = im.getNextInstructionLocation().getLongitude();
+			}
 			// Get the coordinates of the decision point after next
-			double dp2Lat = im.getNextInstructionLocation().getLatitude();
-			double dp2Lng = im.getNextInstructionLocation().getLongitude();
+			//double dp2Lat = im.getNextInstructionLocation().getLatitude();
+			//double dp2Lng = im.getNextInstructionLocation().getLongitude();
 
 			// Calculate the distance to the next decision point
 			float[] results = new float[1];
 			Location.distanceBetween(lat, lng, dp1Lat, dp1Lng, results);
 			double distanceDP1 = results[0];
+			if(lastDistanceDP1 == 0){
+				lastDistanceDP1 = distanceDP1;
+			}
 
 			// Check whether a now instruction must be used (only once for each
 			// route segment)
@@ -808,6 +828,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			// Calculate the distance to the decision point after next
 			Location.distanceBetween(lat, lng, dp2Lat, dp2Lng, results);
 			double distanceDP2 = results[0];
+			if(lastDistanceDP2 == 0){
+				lastDistanceDP2 = distanceDP2;
+			}
 
 			// Log the distances
 			String distancesString = "LastDistanceDP1: " + lastDistanceDP1
@@ -816,6 +839,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			debugger += distancesString + "\n";
 			Log.v("Navi.onLocationChanged", distancesString);
 
+
+			// If we have been within NODE_WINDOW_DISTANCE
+			// of the next node
+			if(distanceDP1 < getApplicationContext().getResources().getInteger(R.integer.NODE_WINDOW_DISTANCE)){
+				beenWithinNodeWindow = true;
+			}
 			// Check the distances with the stored ones
             // CASE 1: This is the handle when we can get close to
             // our decision point like on city roads, but not
@@ -823,6 +852,13 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			if (distanceDP1 < MAX_DISTANCE_TO_DECISION_POINT) {
 				// Distance to decision point is less than
 				// MAX_DISTANCE_TO_DECISION_POINT
+
+				if(im.isOnLastInstruction()){
+					// Tell User they have arrived and stop navigation
+					haveArrivedInstruction();
+					stopNavigation();
+					return;
+				}
 				updateInstruction();
 			} else if (distanceDP1 < DISTANCE_FOR_NOW_INSTRUCTION
 					&& nowInstructionUsed == true) {
@@ -834,22 +870,23 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				// instruction is only used once
 				nowInstructionUsed = false;
 			} else if (distanceDP1 > lastDistanceDP1
-					&& distanceDP2 < lastDistanceDP2) {
+					&& distanceDP2 < lastDistanceDP2
+					&& beenWithinNodeWindow) {
 				// The distance to the next decision point has increased and the
-				// distance to the decision point after next has decreased
-				lastDistanceDP1 = distanceDP1;
-				lastDistanceDP2 = distanceDP2;
+				// distance to the decision point after next has decreased and
+				// user has been within the node window
+				//lastDistanceDP1 = distanceDP1;
+				//lastDistanceDP2 = distanceDP2;
 				distanceCounter++;
 
 				String logMessage = "distanceCounter: " + distanceCounter;
 				debugger += logMessage + "\n";
 				Log.v("Navi.onLocationChanged", logMessage);
-			} else if (distanceDP1 > lastDistanceDP1
-					&& distanceDP2 > lastDistanceDP2) {
+			} else if (distanceDP1 > lastDistanceDP1) {
 				// Distance to the next decision point and the decision point
 				// after next has increased (can lead to a driving error)
-				lastDistanceDP1 = distanceDP1;
-				lastDistanceDP2 = distanceDP2;
+				//lastDistanceDP1 = distanceDP1;
+				//lastDistanceDP2 = distanceDP2;
 				distanceCounter--;
 
 				String logMessage = "distanceIncreaseCounter: "
@@ -857,6 +894,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				debugger += logMessage + "\n";
 				Log.v("Navi.onLocationChanged", logMessage);
 			}
+
+			// Update the last distances
+			lastDistanceDP1 = distanceDP1;
+			lastDistanceDP2 = distanceDP2;
 
 			// Check if the whole guidance needs to be reloaded due to a driving
             // error (user seems to go away from both the decision point and the
@@ -869,20 +910,15 @@ public class NaviActivity extends MapActivity implements OnInitListener,
             // a highway where we can't get exactly close to decision
             // point 1
 			if (distanceCounter > MAX_COUNTER_VALUE) {
+				if(im.isOnLastInstruction()){
+					// Tell User they have arrived and stop navigation
+					haveArrivedInstruction();
+					stopNavigation();
+					return;
+				}
 				updateInstruction();
 			}
 		}
-	}
-
-	/**
-	 * This function takes a latitude and longitude value and creates a string
-	 * that mapquest knows how to read.
-	 * @param latitude
-	 * @param longitude
-	 * @return String containing lat/long that mapquest can read
-	 */
-	private String stringifyCoords(double latitude, double longitude){
-		return "{latLng:{lat:" + latitude + ",lng:" + longitude + "}}";
 	}
 
 	@Override
@@ -916,10 +952,38 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		distanceCounter = 0;
 		nowInstructionChecked = false;
 		nowInstructionUsed = false;
+		beenWithinNodeWindow = false;
 
 		// Get the next instruction and display it
 		Instruction nextInstruction = im.getNextInstruction();
 		displayInstruction(nextInstruction);
+
+	}
+
+	private void haveArrivedInstruction(){
+		// WILLIAM: Create new instance of class Instruction that says we have arrived
+		// Instruction i = new Instruction(im.getCurrentInstruction().getDecisionPoint() ,24);
+		Instruction i = new DistanceInstruction(im.getCurrentInstruction().getDecisionPoint(),24, (int) lastDistanceDP1);
+
+		// Reset the distances, their counters, and the NowInstruction
+		// controllers
+		lastDistanceDP1 = 0;
+		lastDistanceDP2 = 0;
+		distanceCounter = 0;
+		nowInstructionChecked = false;
+		nowInstructionUsed = false;
+
+		displayInstruction(i);
+	}
+
+	private void stopNavigation(){
+		// This is where we have to close down the navigation and have to leave the GUI
+		// in a state that shows they have arrived
+		// Because once we start the opencv stuff we have to tell opencv to stop taking pictures
+		// Possibility: Go back to previous activity, but let user know they have arrived (count 30 seconds then go back?)
+		// Possibility: Turn off opencv and then they have to hit a button to go back to previous activity
+
+		showDialog();
 	}
 
 	/**
@@ -1035,5 +1099,27 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// Restart the activity
 		finish();
 		startActivity(updatedIntent);
+	}
+
+	void showDialog() {
+		DialogFragment newFragment = NaviDialogue
+				.newInstance(R.string.navi_dialogue_text);
+		newFragment.show(getFragmentManager(), "dialog");
+	}
+
+	/*
+	This is called when the user clicks the ok button of the NaviDialogue
+	 */
+	public void doPositiveClick() {
+		finish(); // End the activity
+		Log.i("NaviActivity", "Positive click!");
+	}
+
+	/*
+	This is called when the user clicks the reroute button of the NaviDialogue
+	 */
+	public void doNegativeClick() {
+		updateGuidance(); // Perform reroute from current location
+		Log.i("NaviActivity", "Negative click!");
 	}
 }
