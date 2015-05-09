@@ -45,8 +45,6 @@ public class Navi_Test extends Activity implements CameraBridgeViewBase.CvCamera
         }
     };
 
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Log.i(TAG, "called onCreate");
@@ -71,7 +69,7 @@ public class Navi_Test extends Activity implements CameraBridgeViewBase.CvCamera
     public void onResume()
     {
         super.onResume();
-        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_3, this,
+        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_9, this,
                 mLoaderCallback);
     }
 

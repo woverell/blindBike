@@ -22,6 +22,16 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.CameraBridgeViewBase;
+import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.OpenCVLoader;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
+import org.opencv.imgproc.Imgproc;
+
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -45,6 +55,8 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -80,7 +92,12 @@ import de.mrunde.bachelorthesis.instructions.LandmarkInstruction;
  * @author Marius Runde
  */
 public class NaviActivity extends MapActivity implements OnInitListener,
-		LocationListener {
+		LocationListener, CameraBridgeViewBase.CvCameraViewListener2,View.OnTouchListener {
+
+	private static final String TAG = "OCVSample::Activity";
+	private Mat mRgba;
+	private Mat mGray;
+	private CameraBridgeViewBase mOpenCvCameraView;
 
 	// --- The indexes of the overlays ---
 	/**
@@ -233,6 +250,37 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private String debugger = "";
 
+	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+		@Override
+		public void onManagerConnected(int status) {
+			switch (status) {
+				case LoaderCallbackInterface.SUCCESS:
+				{
+					Log.i(TAG, "OpenCV loaded successfully");
+					mOpenCvCameraView.enableView();
+					mOpenCvCameraView.setOnTouchListener(NaviActivity.this);
+				} break;
+				case LoaderCallbackInterface.INIT_FAILED:
+					Log.i("Test","Init Failed");
+					break;
+				case LoaderCallbackInterface.INSTALL_CANCELED:
+					Log.i("Test","Install Cancelled");
+					break;
+				case LoaderCallbackInterface.INCOMPATIBLE_MANAGER_VERSION:
+					Log.i("Test","Incompatible Version");
+					break;
+				case LoaderCallbackInterface.MARKET_ERROR:
+					Log.i("Test","Market Error");
+					break;
+				default:
+				{
+					Log.i("Test", "OpenCV Manager Install");
+					super.onManagerConnected(status);
+				} break;
+			}
+		}
+	};
+
 	/**
 	 * This method is called when the application has been started
 	 */
@@ -283,6 +331,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		// Get the guidance information and create the instructions
 		getGuidance();
+
+		mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.opencv_java_camera_view);
+		mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
+		mOpenCvCameraView.setCvCameraViewListener(this);
 	}
 
 	/**
@@ -300,6 +352,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			}
 		});
 	}
+
+
 
 	/**
 	 * Set up the map and disable user interaction
@@ -390,44 +444,6 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		map.getOverlays().add(destinationOverlay);
 	}
 
-	/**
-	 * Calculate the route from the current location to the destination
-	 */
-	private void calculateRoute() {
-		// Clear the previous route first
-		if (rm != null) {
-			rm.clearRoute();
-		}
-
-		// Initialize a new RouteManager to calculate the route
-		rm = new RouteManager(getBaseContext(), getResources().getString(
-				R.string.apiKey));
-		// Set the route options (e.g. route type)
-		rm.setOptions(routeOptions);
-		// Set route callback
-		rm.setRouteCallback(new RouteManager.RouteCallback() {
-
-			@Override
-			public void onSuccess(RouteResponse response) {
-				// Route has been calculated successfully
-				Log.i("NaviActivity",
-						getResources().getString(R.string.routeCalculated));
-			}
-
-			@Override
-			public void onError(RouteResponse response) {
-				// Route could not be calculated
-				Log.e("NaviActivity",
-						getResources().getString(R.string.routeNotCalculated));
-			}
-		});
-		// Calculate the route and display it on the map
-		rm.createRoute(str_currentLocation, str_destination);
-
-		// Zoom to current location
-		map.getController().animateTo(myLocationOverlay.getMyLocation());
-		map.getController().setZoom(18);
-	}
 
 	/**
 	 * Get the guidance information from MapQuest
@@ -752,6 +768,62 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// Request location updates at startup every 500ms for changes of 1m
 		lm.requestLocationUpdates(provider, 500, 1, this);
 		super.onResume();
+
+		// Initialize OpenCV manager
+		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_9, this, mLoaderCallback); // CHRIS: What should the version actually be?
+	}
+
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		if (mOpenCvCameraView != null)
+			mOpenCvCameraView.disableView();
+	}
+
+	public void onCameraViewStarted(int width, int height) {
+		mGray = new Mat();
+		mRgba = new Mat();
+	}
+
+	public void onCameraViewStopped() {
+	}
+
+	public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+		mRgba = inputFrame.rgba();
+		// Step 1: Downsize Image???
+			// If it's running at 1080p that means the resolution is 1920x1080
+			// Downsampling by 2 would lead 960x540
+			// Downsampling by 4 would lead 480x270
+		Mat halfRgba = new Mat();
+		Imgproc.pyrDown(mRgba, halfRgba);
+		Log.i("NaviActivityHalf", "width: " + halfRgba.width() + "height: " + halfRgba.height() + "\n");
+
+
+		int width = mRgba.width();
+		int height = mRgba.height();
+		Log.i("NaviActivity", "width: " + width + "height: " + height + "\n");
+		// Step 2: Any preprocessing/noise removal???
+		// Step 3: Do we only process every x frames???
+			// We would figure out x is a function of x = f(maximum bike speed, maximum distance between frames)
+			// if(c == x) {process frame}
+			// c++;
+			// if(c > x) {set c = 1}
+
+		// Step 4: Performance Monitoring
+		// Maybe we should have some kind of timer function so we know which frames we are processing and
+		// write out to a log file to monitor performance
+		// NOTE: Looking at the org.opencv.android.FpsMeter
+
+		// CALL ROAD FOLLOWING(William)
+
+
+		// CALL INTERSECTION DETECTION(Chris)
+		return mRgba;
+	}
+
+	@Override
+	public boolean onTouch(View v, MotionEvent event) {
+		return false;
 	}
 
 	@Override
@@ -761,6 +833,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		myLocationOverlay.disableMyLocation();
 		// Disable the LocationManager when in the background
 		lm.removeUpdates(this);
+		// Disable camera view
+		if (mOpenCvCameraView != null)
+			mOpenCvCameraView.disableView();
 	}
 
 	@Override

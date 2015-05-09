@@ -27,22 +27,23 @@
         <activity
             android:name="de.mrunde.bachelorthesis.activities.NaviActivity"
             android:label="@string/app_name"
-            android:parentActivityName="de.mrunde.bachelorthesis.activities.MainActivity" >
+            android:parentActivityName="edu.csueb.ilab.blindbike.blindbike.EntranceActivity" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="edu.csueb.ilab.blindbike.blindbike.EntranceActivity" />
         </activity>
-
         <activity
             android:name="edu.csueb.ilab.blindbike.blindbike.Navi_Test"
             android:label="@string/app_name"
-            android:screenOrientation="landscape">
+            android:parentActivityName="edu.csueb.ilab.blindbike.blindbike.EntranceActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="edu.csueb.ilab.blindbike.blindbike.EntranceActivity" />
             <intent-filter>
                 <action android:name="edu.csueb.ilab.blindbike.blindbike.ImagePreview" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
     </application>
-
 
 </manifest>

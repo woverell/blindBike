@@ -219,8 +219,8 @@ public abstract class CameraBridgeViewBase extends SurfaceView implements Surfac
     }
 
     /**
-     * This method is provided for clients, so they can enable the camera connection.
-     * The actual onCameraViewStarted callback will be delivered only after both this method is called and surface is available
+     * This method is provaided for clients, so they can enable the camera connection.
+     * The actual onCameraViewStrted callback will be delivered only after both this method is called and surface is available
      */
     public void enableView() {
         synchronized(mSyncObject) {
