@@ -188,6 +188,16 @@ public class EntranceActivity extends ActionBarActivity {
                 }
             }
         });
+
+        this.button_help = (Button) findViewById(R.id.helpButton);
+        button_help.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // Start Navi_Test Activity
+                Intent intent=new Intent(view.getContext(),Navi_Test.class);
+                startActivity(intent);
+            }
+        });
     }
 
     /**

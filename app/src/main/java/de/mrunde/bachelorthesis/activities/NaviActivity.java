@@ -22,6 +22,15 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.CameraBridgeViewBase;
+import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.OpenCVLoader;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
+
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -232,6 +241,35 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 * on the application via the <code>OptionsMenu</code>
 	 */
 	private String debugger = "";
+
+	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+		@Override
+		public void onManagerConnected(int status) {
+			switch(status) {
+				case LoaderCallbackInterface.SUCCESS:
+					Log.i("Test","OpenCV Manager Connected");
+					//from now onwards, you can use OpenCV API
+					Mat m = new Mat(5, 10, CvType.CV_8UC1, new Scalar(0));
+					break;
+				case LoaderCallbackInterface.INIT_FAILED:
+					Log.i("Test","Init Failed");
+					break;
+				case LoaderCallbackInterface.INSTALL_CANCELED:
+					Log.i("Test","Install Cancelled");
+					break;
+				case LoaderCallbackInterface.INCOMPATIBLE_MANAGER_VERSION:
+					Log.i("Test","Incompatible Version");
+					break;
+				case LoaderCallbackInterface.MARKET_ERROR:
+					Log.i("Test","Market Error");
+					break;
+				default:
+					Log.i("Test","OpenCV Manager Install");
+					super.onManagerConnected(status);
+					break;
+			}
+		}
+	};
 
 	/**
 	 * This method is called when the application has been started
@@ -752,6 +790,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// Request location updates at startup every 500ms for changes of 1m
 		lm.requestLocationUpdates(provider, 500, 1, this);
 		super.onResume();
+
+		//initialize OpenCV manager
+		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_10, this, mLoaderCallback);
 	}
 
 	@Override
