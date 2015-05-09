@@ -45,8 +45,6 @@ public class Navi_Test extends Activity implements CameraBridgeViewBase.CvCamera
         }
     };
 
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Log.i(TAG, "called onCreate");
