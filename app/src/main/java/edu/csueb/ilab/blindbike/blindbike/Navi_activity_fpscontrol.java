@@ -1,10 +1,8 @@
 package edu.csueb.ilab.blindbike.blindbike;
 
 import android.app.Activity;
-import android.content.Context;
 import android.hardware.Camera;
 import android.os.Bundle;
-import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
@@ -13,7 +11,6 @@ import android.view.WindowManager;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.JavaCameraView;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
@@ -21,19 +18,17 @@ import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * Created by Admin on 5/1/2015.
  */
-public class Navi_activity extends Activity implements CameraBridgeViewBase.CvCameraViewListener2,View.OnTouchListener{
+public class Navi_activity_fpscontrol extends Activity implements CameraBridgeViewBase.CvCameraViewListener2,View.OnTouchListener{
 
     private static final String TAG = "OCVSample::Activity";
     private Mat mRgba;
     private Mat mGray;
     private CameraBridgeViewBase mOpenCvCameraView;
     private CustomizeView mMyCamera;
-    private MyView myv;
     // The index of the active camera.
     private int mCameraIndex;
     // A key for storing the index of the active camera.
@@ -52,7 +47,7 @@ public class Navi_activity extends Activity implements CameraBridgeViewBase.CvCa
                 {
                     Log.i(TAG, "OpenCV loaded successfully");
                     mOpenCvCameraView.enableView();
-                    mOpenCvCameraView.setOnTouchListener(Navi_activity.this);
+                    mOpenCvCameraView.setOnTouchListener(Navi_activity_fpscontrol.this);
                 } break;
                 default:
                 {
@@ -69,7 +64,12 @@ public class Navi_activity extends Activity implements CameraBridgeViewBase.CvCa
         Log.i(TAG, "called onCreate");
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        setContentView(R.layout.navi_activity);
+        if(getResources().getBoolean(R.bool.DEVELOPMENT_MODE)) {
+            setContentView(R.layout.navi);
+        }else
+        {
+            setContentView(R.layout.navi);
+        }
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.tutorial1_activity_java_surface_view);
         mMyCamera= CustomizeView.class.cast(findViewById(R.id.tutorial1_activity_java_surface_view));
         // the only camera needed is the back facing!
@@ -184,43 +184,3 @@ public class Navi_activity extends Activity implements CameraBridgeViewBase.CvCa
     }
 }
 
-class MyView extends JavaCameraView{
-
-    public MyView(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
-
-    public MyView(Context context,int cameraId)
-    {
-        super(context,cameraId);
-    }
-
-    public List<Camera.Size> getResolutionList() {
-        return mCamera.getParameters().getSupportedPreviewSizes();
-    }
-
-    public void setResolution(Camera.Size resolution) {
-        disconnectCamera();
-        mMaxHeight = resolution.height;
-        mMaxWidth = resolution.width;
-        connectCamera(getWidth(), getHeight());
-    }
-
-    public Camera.Size getResolution() {
-        return mCamera.getParameters().getPreviewSize();
-    }
-
-
-    public void setPreviewFPS(double min, double max) throws IOException {
-
-
-        Camera.Parameters params = mCamera.getParameters();
-   /*     List<int[]> frameRates = params.getSupportedPreviewFpsRange();
-        Log.e("frameRates","JUST SEE THE LIST");
-        for (int[] rates : frameRates) {
-            Log.e("min : ", "max :"+ rates[0] + rates[1]);
-        }*/
-        params.setPreviewFpsRange((int)(10000),(int)(12000));
-        mCamera.setParameters(params);
-    }
-}

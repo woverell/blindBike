@@ -193,10 +193,7 @@ public class EntranceActivity extends ActionBarActivity {
         button_help.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // Get the entered destination
-
-                Intent intent=new Intent(view.getContext(),Navi_activity.class);
-                startActivity(intent);
+                // Play audio file
 
             }
         });

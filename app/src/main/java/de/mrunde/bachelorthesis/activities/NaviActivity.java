@@ -287,7 +287,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
         if(getResources().getBoolean(R.bool.DEVELOPMENT_MODE)) {
-            setContentView(R.layout.navi_activity);
+            setContentView(R.layout.navi);
         }else
         {
             setContentView(R.layout.navi);
