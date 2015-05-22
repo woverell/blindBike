@@ -24,12 +24,9 @@ import org.json.JSONObject;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
-import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
 import android.app.AlertDialog;
@@ -70,7 +67,6 @@ import com.mapquest.android.maps.MapView;
 import com.mapquest.android.maps.MyLocationOverlay;
 import com.mapquest.android.maps.OverlayItem;
 import com.mapquest.android.maps.RouteManager;
-import com.mapquest.android.maps.RouteResponse;
 
 import de.mrunde.bachelorthesis.instructions.DistanceInstruction;
 import edu.csueb.ilab.blindbike.blindbike.EntranceActivity;
@@ -83,6 +79,11 @@ import de.mrunde.bachelorthesis.instructions.GlobalInstruction;
 import de.mrunde.bachelorthesis.instructions.Instruction;
 import de.mrunde.bachelorthesis.instructions.InstructionManager;
 import de.mrunde.bachelorthesis.instructions.LandmarkInstruction;
+import edu.csueb.ilab.blindbike.intersection.XCrossing;
+import edu.csueb.ilab.blindbike.lightdetection.LightDetector;
+import edu.csueb.ilab.blindbike.obstacleavoidance.ObstacleAvoidance;
+import edu.csueb.ilab.blindbike.roadfollowing.GlobalRF;
+import edu.csueb.ilab.blindbike.roadfollowing.LocalRF;
 
 /**
  * This is the navigational activity which is started by the MainActivity. It
@@ -97,6 +98,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private Mat mRgba;
 	private Mat mGray;
 	private CameraBridgeViewBase mOpenCvCameraView;
+
+	private XCrossing xCrossing;
+	private LightDetector lightDetector;
+	private GlobalRF globalRF;
+	private LocalRF localRF;
+	private ObstacleAvoidance obstacleAvoidance;
 
 	// --- The indexes of the overlays ---
 	/**
@@ -292,6 +299,14 @@ public class NaviActivity extends MapActivity implements OnInitListener,
         {
             setContentView(R.layout.navi);
         }
+
+		// Setup Detector Instance
+		xCrossing = new XCrossing();
+		lightDetector = new LightDetector();
+		globalRF = new GlobalRF();
+		localRF = new LocalRF();
+		obstacleAvoidance = new ObstacleAvoidance();
+
 		// Get the route information from the intent
 		Intent intent = getIntent();
 		this.str_currentLocation = intent.getStringExtra("str_currentLocation");
@@ -794,7 +809,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			// Downsampling by 2 would lead 960x540
 			// Downsampling by 4 would lead 480x270
 		Mat halfRgba = new Mat();
-		Imgproc.pyrDown(mRgba, halfRgba);
+		Imgproc.pyrDown(mRgba, halfRgba); // Downsample
 		Log.i("NaviActivityHalf", "width: " + halfRgba.width() + "height: " + halfRgba.height() + "\n");
 
 
@@ -813,11 +828,17 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// write out to a log file to monitor performance
 		// NOTE: Looking at the org.opencv.android.FpsMeter
 
+		// Light Detection
+		lightDetector.processFrame(halfRgba);
+
+		// Obstacle Detection
+		obstacleAvoidance.processFrame(halfRgba);
+
 		// CALL ROAD FOLLOWING(William)
+		globalRF.processFrame(halfRgba);
 
-
-		// CALL INTERSECTION DETECTION(Chris)
-		return mRgba;
+		Imgproc.pyrUp(halfRgba, halfRgba); //upsample
+		return halfRgba;
 	}
 
 	@Override
