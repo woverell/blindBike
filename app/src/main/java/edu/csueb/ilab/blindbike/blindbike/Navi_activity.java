@@ -16,6 +16,7 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.JavaCameraView;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
 
@@ -33,6 +34,15 @@ public class Navi_activity extends Activity implements CameraBridgeViewBase.CvCa
     private CameraBridgeViewBase mOpenCvCameraView;
     private CustomizeView mMyCamera;
     private MyView myv;
+    // The index of the active camera.
+    private int mCameraIndex;
+    // A key for storing the index of the active camera.
+    private static final String STATE_CAMERA_INDEX = "cameraIndex";
+    // Whether the active camera is front-facing.
+    // If so, the camera view should be mirrored.
+    private boolean mIsCameraFrontFacing;
+    // The number of cameras on the device.
+    private int mNumCameras;
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -64,9 +74,32 @@ public class Navi_activity extends Activity implements CameraBridgeViewBase.CvCa
         mMyCamera= CustomizeView.class.cast(findViewById(R.id.tutorial1_activity_java_surface_view));
         // the only camera needed is the back facing!
         // Some code to check for the camera if its available.
+
+        if(savedInstanceState!=null)
+        {
+            mCameraIndex=savedInstanceState.getInt(STATE_CAMERA_INDEX,0);
+
+        }
+        else
+        {
+            mCameraIndex=0;
+        }
+
+        Camera.CameraInfo cameraInfo=new Camera.CameraInfo();
+        Camera.getCameraInfo(mCameraIndex, cameraInfo);
+        mIsCameraFrontFacing=(cameraInfo.facing== Camera.CameraInfo.CAMERA_FACING_FRONT);
+        mNumCameras=Camera.getNumberOfCameras();
+
+
         mOpenCvCameraView.setMaxFrameSize(640,480);
         mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
         mOpenCvCameraView.setCvCameraViewListener(this);
+    }
+
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        // Save the current camera index.
+        savedInstanceState.putInt(STATE_CAMERA_INDEX, mCameraIndex);
+        super.onSaveInstanceState(savedInstanceState);
     }
 
     @Override
@@ -100,6 +133,12 @@ public class Navi_activity extends Activity implements CameraBridgeViewBase.CvCa
     }
 
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+        //if front facing camera is selected
+        if(mIsCameraFrontFacing)
+        {
+            Core.flip(mRgba, mRgba, 1);
+        }
+
         mRgba = inputFrame.rgba();
         Imgproc.cvtColor(mRgba, mGray, Imgproc.COLOR_BGRA2GRAY);
         //step 1 downsize an image
