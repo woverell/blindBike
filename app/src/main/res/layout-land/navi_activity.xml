@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:opencv="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context="de.mrunde.bachelorthesis.activities.NaviActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.2"
+        android:background="@color/WHITE"
+        android:orientation="horizontal" >
+
+        <TextView
+            android:id="@+id/tv_instruction"
+            android:layout_width="0dp"
+            android:layout_height="fill_parent"
+            android:layout_weight="0.7"
+            android:gravity="center"
+            android:textColor="@color/BLACK"
+            android:textSize="10pt" />
+
+        <ImageView
+            android:id="@+id/iv_instruction"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0.3"
+            android:contentDescription="Instruction Image" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.8"
+        android:background="@color/WHITE"
+        android:orientation="horizontal"
+        android:weightSum="1">
+
+        <edu.csueb.ilab.blindbike.blindbike.CustomizeView
+            android:layout_width="347dp"
+            android:layout_height="283dp"
+            android:visibility="gone"
+            android:id="@+id/tutorial1_activity_java_surface_view"
+            opencv:show_fps="true"
+            opencv:camera_id="back"/>
+<!--org.opencv.android.JavaCameraView opencv:camera_id="back" android:layout_width="347dp" android:layout_height="283dp"-->
+
+
+
+
+        <com.mapquest.android.maps.MapView
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/map"
+            android:layout_width="match_parent"
+            android:layout_height="281dp"
+            android:clickable="true" />
+
+        <!-- Chris add your widget here -->
+
+    </LinearLayout>
+</LinearLayout>
