@@ -50,7 +50,6 @@ import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.TextToSpeech.OnInitListener;
 import android.app.DialogFragment;
-import android.app.FragmentManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -288,7 +287,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
         if(getResources().getBoolean(R.bool.DEVELOPMENT_MODE)) {
-            setContentView(R.layout.navi_test);
+            setContentView(R.layout.navi_activity);
         }else
         {
             setContentView(R.layout.navi);
