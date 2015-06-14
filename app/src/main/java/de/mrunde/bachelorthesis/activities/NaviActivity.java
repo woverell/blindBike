@@ -303,9 +303,6 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// Setup Detector Instance
 		xCrossing = new XCrossing();
 		lightDetector = new LightDetector();
-		globalRF = new GlobalRF();
-		localRF = new LocalRF();
-		obstacleAvoidance = new ObstacleAvoidance();
 
 		// Get the route information from the intent
 		Intent intent = getIntent();
@@ -797,6 +794,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	public void onCameraViewStarted(int width, int height) {
 		mGray = new Mat();
 		mRgba = new Mat();
+
+		globalRF = new GlobalRF();
+		localRF = new LocalRF();
+		obstacleAvoidance = new ObstacleAvoidance();
 	}
 
 	public void onCameraViewStopped() {
