@@ -132,11 +132,12 @@ public class GlobalRF {
         imgFrame.copyTo(localFrame); // Copy to local so can modify
 
         // PHASE 3: Set Region of Interest
-        subFrame = localFrame.submat(regionOfInterest);
+        //subFrame = localFrame.submat(regionOfInterest);
 
         // PHASE 4: Homographic Transform (TBD)
 
         // PHASE 5: Classification (pixels -> classes)
+        /*
         for(int i = 0; i < subFrame.height(); i++){
             for(int j = 0; j < subFrame.width(); j++){
                 // Set up features for this pixel
@@ -144,5 +145,6 @@ public class GlobalRF {
                 //knn.find_nearest();
             }
         }
+        */
     }
 }
