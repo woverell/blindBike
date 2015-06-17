@@ -1,5 +1,9 @@
 package edu.csueb.ilab.blindbike.roadfollowing;
 
+import android.util.Log;
+import android.widget.Toast;
+
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Rect;
 import org.opencv.ml.CvKNearest;
@@ -102,8 +106,32 @@ public class GlobalRF {
 
         // Initialize K-NN class with training data
         // TODO: ADD TRAINING DATA AS PARAMETER
-        knn = new CvKNearest();
+        int[][] intArray = new int[][]{{2,3,4},{5,6,7},{8,9,10},{9, 9, 7},{8,7,7}}; // points
+        Mat sampleData = new Mat(5,3, CvType.CV_32FC1); // 5 rows; 3 cols
+        for(int row=0;row<5;row++){
+            for(int col=0;col<3;col++)
+                sampleData.put(row, col, intArray[row][col]);
+        }
 
+        int[][]labelArray = new int[][]{{1}, {1}, {0}, {1}, {0}}; // labels
+        Mat labels = new Mat(5,1, CvType.CV_32FC1);  // 5 rows; 1 col
+        for(int row=0;row<5;row++){
+            for(int col=0;col<1;col++)
+                labels.put(row, col, labelArray[row][col]);
+        }
+        knn = new CvKNearest(sampleData, labels); // initialize and train knn
+
+        // Test knn
+        Mat results = new Mat();
+        Mat neighborResponses = new Mat();
+        Mat dists = new Mat();
+        Mat testSample = new Mat(1,3, CvType.CV_32FC1); // will have one entry: (2,3,4)
+        testSample.put(0, 0, 9);
+        testSample.put(0, 1, 9);
+        testSample.put(0, 2, 6);
+        knn.find_nearest(testSample, 3, results, neighborResponses, dists);
+        double resultClass = results.get(0,0)[0];
+        Log.i("NaviActivity", "class: " + resultClass + "\n");
     }
 
     /**
