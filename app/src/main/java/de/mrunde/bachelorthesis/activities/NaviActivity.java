@@ -937,7 +937,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 
 			String t= String.valueOf(distanceDP2);//+ String.valueOf(results[0]); //String.valueOf(results[0])
-			addstatus(t);
+			addstatus(t); //checking the distance in mts
 			// Log the distances
 			String distancesString = "LastDistanceDP1: " + lastDistanceDP1
 					+ " | distanceDP1: " + distanceDP1 + " | LastDistanceDP2: "
