@@ -32,7 +32,7 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="edu.csueb.ilab.blindbike.blindbike.EntranceActivity" />
         </activity>
-        <activity
+ <!--       <activity
             android:name="edu.csueb.ilab.blindbike.blindbike.Navi_Test"
             android:label="@string/app_name"
             android:parentActivityName="edu.csueb.ilab.blindbike.blindbike.EntranceActivity" >
@@ -43,7 +43,7 @@
                 <action android:name="edu.csueb.ilab.blindbike.blindbike.ImagePreview" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-        </activity>
+        </activity>-->
     </application>
 
 </manifest>

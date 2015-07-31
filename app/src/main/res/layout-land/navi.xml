@@ -15,11 +15,18 @@
         android:background="@color/WHITE"
         android:orientation="horizontal" >
 
+        <EditText
+            android:layout_width="80dp"
+            android:layout_height="56dp"
+            android:id="@+id/mydtxt"
+            android:layout_weight="0.03"
+            android:layout_gravity="left" />
+
         <TextView
             android:id="@+id/tv_instruction"
             android:layout_width="0dp"
             android:layout_height="fill_parent"
-            android:layout_weight="0.7"
+            android:layout_weight="0.49"
             android:gravity="center"
             android:textColor="@color/BLACK"
             android:textSize="10pt" />

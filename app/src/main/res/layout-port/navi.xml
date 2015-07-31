@@ -15,6 +15,13 @@
         android:background="@color/WHITE"
         android:orientation="horizontal" >
 
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="95dp"
+            android:id="@+id/mydtxt"
+            android:layout_weight="0.35"
+            android:layout_gravity="left" />
+
         <TextView
             android:id="@+id/tv_instruction"
             android:layout_width="0dp"

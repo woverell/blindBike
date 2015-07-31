@@ -55,6 +55,7 @@ import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -256,6 +257,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private String debugger = "";
 
+	private EditText mydis;
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
 		@Override
 		public void onManagerConnected(int status) {
@@ -293,6 +295,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+
         if(getResources().getBoolean(R.bool.DEVELOPMENT_MODE)) {
             setContentView(R.layout.navi);
         }else
@@ -358,6 +361,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		this.tv_instruction = (TextView) findViewById(R.id.tv_instruction);
 		this.iv_instruction = (ImageView) findViewById(R.id.iv_instruction);
         this.reroute_button = (Button) findViewById(R.id.reroute_button);
+
         reroute_button.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
@@ -458,6 +462,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		map.getOverlays().add(destinationOverlay);
 	}
 
+	public void addstatus(String t){
+		this.mydis = (EditText)findViewById(R.id.mydtxt);
+		mydis.setText(t, TextView.BufferType.EDITABLE); //results.toString());
+	}
 
 	/**
 	 * Get the guidance information from MapQuest
@@ -921,18 +929,21 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			nowInstructionChecked = true;
 
 			// Calculate the distance to the decision point after next
-			Location.distanceBetween(lat, lng, dp2Lat, dp2Lng, results);
+			Location.distanceBetween(lat, lng, dp2Lat, dp2Lng, results);	//in meters
 			double distanceDP2 = results[0];
 			if(lastDistanceDP2 == 0){
 				lastDistanceDP2 = distanceDP2;
 			}
 
+
+			String t= String.valueOf(distanceDP2);//+ String.valueOf(results[0]); //String.valueOf(results[0])
+			addstatus(t);
 			// Log the distances
 			String distancesString = "LastDistanceDP1: " + lastDistanceDP1
 					+ " | distanceDP1: " + distanceDP1 + " | LastDistanceDP2: "
 					+ lastDistanceDP2 + " | distanceDP2: " + distanceDP2;
 			debugger += distancesString + "\n";
-			Log.v("Navi.onLocationChanged", distancesString);
+			Log.e("Navi.onLocationChanged", distancesString );
 
 
 			// If we have been within NODE_WINDOW_DISTANCE

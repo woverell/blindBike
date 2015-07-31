@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">BlindBike</string>
+    <string name="app_name">MyBike</string>
     <string name="hello_world">Hello world LYNNE2!</string>
     <string name="action_settings">Settings</string>
     <string name="destination_title_text">Destination</string>
@@ -46,5 +46,6 @@
     <string name="navi_dialogue_text">You have arrived at your destination!</string>
     <string name="navi_dialogue_okbutton_text">OK</string>
     <string name="navi_dialogue_reroutebutton_text">REROUTE</string>
+    <string name="mytxt">T</string>
 
 </resources>
