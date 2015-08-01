@@ -939,6 +939,13 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			String t= String.valueOf(distanceDP2);//+ String.valueOf(results[0]); //String.valueOf(results[0])
 			addstatus(t); //checking the distance in mts
 			// Log the distances
+
+			int f=im.findSignal();
+			if(f==1)
+			{
+				Toast.makeText(getApplicationContext(),"Found signal!",Toast.LENGTH_SHORT).show();
+			}
+
 			String distancesString = "LastDistanceDP1: " + lastDistanceDP1
 					+ " | distanceDP1: " + distanceDP1 + " | LastDistanceDP2: "
 					+ lastDistanceDP2 + " | distanceDP2: " + distanceDP2;
@@ -1004,6 +1011,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			// Update the last distances
 			lastDistanceDP1 = distanceDP1;
 			lastDistanceDP2 = distanceDP2;
+
+
 
 			// Check if the whole guidance needs to be reloaded due to a driving
             // error (user seems to go away from both the decision point and the
