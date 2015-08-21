@@ -30,17 +30,17 @@ public class LightDetector {
     }
 
     // Lower and Upper bounds for range checking in HSV color space
-    private Scalar mLowerBound = new Scalar(57,255,20); 	//for blue 120,100,100
+    private Scalar mLowerBound = new Scalar(251,185,215); 	//for blue 120,100,100
     // for flouracent green light 57,255,20
-    private Scalar mUpperBound = new Scalar(57,255,200); 	// for blue 179,255,255
+    private Scalar mUpperBound = new Scalar(255,241,251); 	// for blue 179,255,255 , blue cap 28,28,37
     // for flouracent green light 57,255,200
     // for gray signs 76,55,28
-    // for gray signs 89,62,33
+    // for gray signs 89,62,33 ,blue cap 80,109,149
     // Minimum contour area in percent for contours filtering
     private static double mMinContourArea = 0.4;
     // Color radius for range checking in HSV color space
-    private Scalar mColorRadius = new Scalar(25,50,50,0);
-    private Mat mSpectrum = new Mat();
+    private Scalar mColorRadius = new Scalar(330,11,100,0);	//initial val 25,50,50,0 //214,55,52,0 for the blue cap
+    private Mat mSpectrum = new Mat();						//
     private List<MatOfPoint> mContours = new ArrayList<MatOfPoint>();
 
     // Cache
@@ -128,7 +128,7 @@ public class LightDetector {
             }
         }
 
-        File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+        File path =Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
 
         String filename = "christ"+df.format(new Date()).toString()+".png";
         File file = new File(path, filename);
@@ -151,7 +151,7 @@ public class LightDetector {
             //draw enclosing rectangle
             Mat ROI = rgbaImage.submat(rect.y, rect.y + rect.height, rect.x, rect.x + rect.width);
 
-            save= Highgui.imwrite(filename, ROI);
+            save= Highgui.imwrite(filename,ROI);
             if (save == true)
                 Log.i("Save Status", "SUCCESS writing image to external storage");
             else

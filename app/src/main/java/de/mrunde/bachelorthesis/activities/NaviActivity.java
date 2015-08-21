@@ -26,7 +26,13 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import android.app.AlertDialog;
@@ -101,7 +107,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private CameraBridgeViewBase mOpenCvCameraView;
 
 	private XCrossing xCrossing;
-	private LightDetector lightDetector;
+	private LightDetector mDetector;
 	private GlobalRF globalRF;
 	private LocalRF localRF;
 	private ObstacleAvoidance obstacleAvoidance;
@@ -250,6 +256,15 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private TextToSpeech tts;
 
+	private boolean mIsColorSelected = false;
+
+	private Scalar mBlobColorRgba;
+	private Scalar mBlobColorHsv;
+	//private LightDetector mDetector;
+	private Mat mSpectrum;
+	private Size SPECTRUM_SIZE;
+	private Scalar CONTOUR_COLOR;
+
 	/**
 	 * Store all logs of the <code>onLocationChanged()</code> and
 	 * <code>updateInstruction()</code> methods in this String to display them
@@ -305,7 +320,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		// Setup Detector Instance
 		xCrossing = new XCrossing();
-		lightDetector = new LightDetector();
+		//lightDetector = new LightDetector();
 		globalRF = new GlobalRF();
 		localRF = new LocalRF();
 		obstacleAvoidance = new ObstacleAvoidance();
@@ -805,25 +820,32 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	public void onCameraViewStarted(int width, int height) {
 		mGray = new Mat();
 		mRgba = new Mat();
+		mDetector = new LightDetector();
+		mSpectrum = new Mat();
+		mBlobColorRgba = new Scalar(255);
+		mBlobColorHsv = new Scalar(255);
+		SPECTRUM_SIZE = new Size(200, 64);
+		CONTOUR_COLOR = new Scalar(255,0,0,255);
 	}
 
 	public void onCameraViewStopped() {
+		mRgba.release();
 	}
 
 	public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-		mRgba = inputFrame.rgba();
+	//	mRgba = inputFrame.rgba();
 		// Step 1: Downsize Image???
 			// If it's running at 1080p that means the resolution is 1920x1080
 			// Downsampling by 2 would lead 960x540
 			// Downsampling by 4 would lead 480x270
-		Mat halfRgba = new Mat();
-		Imgproc.pyrDown(mRgba, halfRgba); // Downsample
-		Log.i("NaviActivityHalf", "width: " + halfRgba.width() + "height: " + halfRgba.height() + "\n");
+	//	Mat halfRgba = new Mat();
+	//	Imgproc.pyrDown(mRgba, halfRgba); // Downsample
+	//	Log.i("NaviActivityHalf", "width: " + halfRgba.width() + "height: " + halfRgba.height() + "\n");
 
 
-		int width = mRgba.width();
-		int height = mRgba.height();
-		Log.i("NaviActivity", "width: " + width + "height: " + height + "\n");
+	//	int width = mRgba.width();
+	//	int height = mRgba.height();
+	//	Log.i("NaviActivity", "width: " + width + "height: " + height + "\n");
 		// Step 2: Any preprocessing/noise removal???
 		// Step 3: Do we only process every x frames???
 			// We would figure out x is a function of x = f(maximum bike speed, maximum distance between frames)
@@ -835,18 +857,103 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// Maybe we should have some kind of timer function so we know which frames we are processing and
 		// write out to a log file to monitor performance
 		// NOTE: Looking at the org.opencv.android.FpsMeter
+		/*if (mIsColorSelected) {
+			mDetector.process(mRgba);
+			List<MatOfPoint> contours = mDetector.getContours();
+			Log.e(TAG, "Contours count: " + contours.size());
+			Imgproc.drawContours(mRgba, contours, -1, CONTOUR_COLOR);
 
+			Mat colorLabel = mRgba.submat(4, 68, 4, 68);
+			colorLabel.setTo(mBlobColorRgba);
+
+			Mat spectrumLabel = mRgba.submat(4, 4 + mSpectrum.rows(), 70, 70 + mSpectrum.cols());
+			mSpectrum.copyTo(spectrumLabel);
+		}*/
+
+		//return mRgba;
 		// Light Detection
-		lightDetector.processFrame(halfRgba);
+		//lightDetector.processFrame(halfRgba);
 
 		// Obstacle Detection
-		obstacleAvoidance.processFrame(halfRgba);
+		//obstacleAvoidance.processFrame(halfRgba);
 
 		// CALL ROAD FOLLOWING(William)
-		globalRF.processFrame(halfRgba);
+		//globalRF.processFrame(halfRgba);
 
-		Imgproc.pyrUp(halfRgba, halfRgba); //upsample
-		return halfRgba;
+		//Imgproc.pyrUp(halfRgba, halfRgba); //upsample
+		//return halfRgba;
+
+		// ****** I have my detection module in here ***********//
+		mRgba = inputFrame.rgba();
+
+		int cols = mRgba.cols();
+		int rows = mRgba.rows();
+
+		int xOffset = (mOpenCvCameraView.getWidth() - cols) / 2;
+		int yOffset = (mOpenCvCameraView.getHeight() - rows) / 2;
+
+		int x = 893;//(int)event.getX() - xOffset;
+		int y = 444;//(int)event.getY() - yOffset;
+
+		Log.i(TAG, "Touch image coordinates: (" + x + ", " + y + ")");
+
+		//     if ((x < 0) || (y < 0) || (x > cols) || (y > rows)) return false;
+
+		Rect touchedRect = new Rect();
+
+		touchedRect.x = (x>4) ? x-4 : 0;
+		touchedRect.y = (y>4) ? y-4 : 0;
+
+		touchedRect.width = (x+4 < cols) ? x + 4 - touchedRect.x : cols - touchedRect.x;
+		touchedRect.height = (y+4 < rows) ? y + 4 - touchedRect.y : rows - touchedRect.y;
+
+		Mat touchedRegionRgba = mRgba.submat(touchedRect);
+
+		Mat touchedRegionHsv = new Mat();
+		Imgproc.cvtColor(touchedRegionRgba, touchedRegionHsv, Imgproc.COLOR_RGB2HSV_FULL);
+
+		// Calculate average color of touched region
+		mBlobColorHsv = Core.sumElems(touchedRegionHsv);
+		int pointCount = touchedRect.width*touchedRect.height;
+		for (int i = 0; i < mBlobColorHsv.val.length; i++)
+			mBlobColorHsv.val[i] /= pointCount;
+
+		mBlobColorRgba = converScalarHsv2Rgba(mBlobColorHsv);
+
+		Log.i(TAG, "Touched rgba color: (" + mBlobColorRgba.val[0] + ", " + mBlobColorRgba.val[1] +
+				", " + mBlobColorRgba.val[2] + ", " + mBlobColorRgba.val[3] + ")");
+
+		mDetector.setHsvColor(mBlobColorHsv);
+
+		Imgproc.resize(mDetector.getSpectrum(), mSpectrum, SPECTRUM_SIZE);
+
+		mIsColorSelected = true;
+
+		touchedRegionRgba.release();
+		touchedRegionHsv.release();
+
+		if (mIsColorSelected) {
+			mDetector.process(mRgba);
+			List<MatOfPoint> contours = mDetector.getContours();
+			Log.e(TAG, "Contours count: " + contours.size());
+			Imgproc.drawContours(mRgba, contours, -1, CONTOUR_COLOR);
+
+			Mat colorLabel = mRgba.submat(4, 68, 4, 68);
+			colorLabel.setTo(mBlobColorRgba);
+
+			Mat spectrumLabel = mRgba.submat(4, 4 + mSpectrum.rows(), 70, 70 + mSpectrum.cols());
+			mSpectrum.copyTo(spectrumLabel);
+		}
+
+		return mRgba;
+	}
+
+	private Scalar converScalarHsv2Rgba(Scalar hsvColor) {
+		Mat pointMatRgba = new Mat();
+		Mat pointMatHsv = new Mat(1, 1, CvType.CV_8UC3, hsvColor);
+		Imgproc.cvtColor(pointMatHsv, pointMatRgba, Imgproc.COLOR_HSV2RGB_FULL, 4);
+
+		return new Scalar(pointMatRgba.get(0, 0));
 	}
 
 	@Override
