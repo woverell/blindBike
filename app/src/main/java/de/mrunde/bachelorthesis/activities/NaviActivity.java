@@ -273,6 +273,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private String debugger = "";
 
 	private EditText mydis;
+
+	private double dptl;
+
+
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
 		@Override
 		public void onManagerConnected(int status) {
@@ -320,7 +324,6 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		// Setup Detector Instance
 		xCrossing = new XCrossing();
-		//lightDetector = new LightDetector();
 		globalRF = new GlobalRF();
 		localRF = new LocalRF();
 		obstacleAvoidance = new ObstacleAvoidance();
@@ -1021,6 +1024,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 			// Calculate the distance to the next decision point
 			float[] results = new float[1];
+			float[] tlresult = new float[1];
 			Location.distanceBetween(lat, lng, dp1Lat, dp1Lng, results);
 			double distanceDP1 = results[0];
 			if(lastDistanceDP1 == 0){
@@ -1042,15 +1046,33 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				lastDistanceDP2 = distanceDP2;
 			}
 
-
-			String t= String.valueOf(distanceDP2);//+ String.valueOf(results[0]); //String.valueOf(results[0])
-			addstatus(t); //checking the distance in mts
+		//	String t= String.valueOf(distanceDP2);//+ String.valueOf(results[0]); //String.valueOf(results[0])
+		//	addstatus(t); //checking the distance in mts
 			// Log the distances
 
 			int f=im.findSignal();
+			double dptllat=0,dptllong=0;
+
+			GeoPoint nexttl = new GeoPoint((int)(im.tllat * 1e6),(int)(im.ltlong * 1e6));
+
+			GeoPoint l = new GeoPoint((int)(lat * 1e6),(int)(lng * 1e6));
+
 			if(f==1)
 			{
-				Toast.makeText(getApplicationContext(),"Found signal!",Toast.LENGTH_SHORT).show();
+				Toast.makeText(getApplicationContext(),"Found signal at ! "+ nexttl.getLatitude() + "long: "+ nexttl.getLongitude() ,Toast.LENGTH_SHORT).show();
+			//	Location.distanceBetween(dptllat, dptllong, lat, lng, tldis);
+
+				int r=6371;
+				double x=(nexttl.getLongitude() - l.getLongitude())*Math.cos((l.getLatitude()+nexttl.getLatitude())/2);
+				double y = (nexttl.getLatitude() - l.getLatitude());
+				double dis=Math.sqrt(x*x + y*y)*r;
+
+				String x_dis=String.valueOf(dis);
+				x_dis = x_dis.substring(3,6);
+				int new_dis=Integer.parseInt(x_dis);
+			//	int new_dis=Integer.parseInt(String.valueOf(dis).substring(3));
+				String t = String.valueOf(new_dis);
+				addstatus(t);
 			}
 
 			String distancesString = "LastDistanceDP1: " + lastDistanceDP1

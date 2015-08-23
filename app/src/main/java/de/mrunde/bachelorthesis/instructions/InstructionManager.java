@@ -95,7 +95,7 @@ public class InstructionManager {
 	 * Intersections to be used
 	 */
 	private List<GeoPoint> intersections;
-
+	public double tllat,ltlong;
 	/**
 	 * Constructor of the InstructionManager class
 	 * 
@@ -227,6 +227,7 @@ public class InstructionManager {
 	}
 	public int findSignal()
 	{
+
 		int flg=0;
 		for(int i=0;i<this.streetFurniture.size();i++)
 		{
@@ -236,6 +237,8 @@ public class InstructionManager {
 			if(st.getCategory().equalsIgnoreCase("traffic light"))
 			{
 				flg=1;
+				tllat=st.getCenter().getLatitude();
+				ltlong=st.getCenter().getLongitude();
 			}
 			else
 				flg=0;

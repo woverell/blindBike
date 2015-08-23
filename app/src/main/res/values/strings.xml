@@ -5,7 +5,7 @@
     <string name="hello_world">Hello world LYNNE2!</string>
     <string name="action_settings">Settings</string>
     <string name="destination_title_text">Destination</string>
-    <string name="sample_destination_text">Peets Coffee, Lafayette, CA</string>
+    <string name="sample_destination_text">Mission Blvd, Hayward, CA</string>
 
     <!--BUTTON STRINGS-->
     <string name="start">GO</string>
