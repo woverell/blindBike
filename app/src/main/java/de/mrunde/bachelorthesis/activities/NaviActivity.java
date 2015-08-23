@@ -1068,7 +1068,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				double dis=Math.sqrt(x*x + y*y)*r;
 
 				String x_dis=String.valueOf(dis);
-				x_dis = x_dis.substring(3,6);
+				x_dis = x_dis.substring(2,6);
 				int new_dis=Integer.parseInt(x_dis);
 			//	int new_dis=Integer.parseInt(String.valueOf(dis).substring(3));
 				String t = String.valueOf(new_dis);
