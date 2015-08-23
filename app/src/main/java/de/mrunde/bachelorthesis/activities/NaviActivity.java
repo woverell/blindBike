@@ -1008,12 +1008,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 			double dp2Lat = 0;
 			double dp2Lng = 0;
-			if(im.isOnLastInstruction()){
+			if (im.isOnLastInstruction()) {
 				// WILLIAM: I don't know right now
 				dp2Lat = dp1Lat;
 				dp2Lng = dp1Lng;
 				//return;
-			}else{
+			} else {
 				// Get the coordinates of the decision point after next
 				dp2Lat = im.getNextInstructionLocation().getLatitude();
 				dp2Lng = im.getNextInstructionLocation().getLongitude();
@@ -1027,7 +1027,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			float[] tlresult = new float[1];
 			Location.distanceBetween(lat, lng, dp1Lat, dp1Lng, results);
 			double distanceDP1 = results[0];
-			if(lastDistanceDP1 == 0){
+			if (lastDistanceDP1 == 0) {
 				lastDistanceDP1 = distanceDP1;
 			}
 
@@ -1040,37 +1040,36 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			nowInstructionChecked = true;
 
 			// Calculate the distance to the decision point after next
-			Location.distanceBetween(lat, lng, dp2Lat, dp2Lng, results);	//in meters
+			Location.distanceBetween(lat, lng, dp2Lat, dp2Lng, results);    //in meters
 			double distanceDP2 = results[0];
-			if(lastDistanceDP2 == 0){
+			if (lastDistanceDP2 == 0) {
 				lastDistanceDP2 = distanceDP2;
 			}
 
-		//	String t= String.valueOf(distanceDP2);//+ String.valueOf(results[0]); //String.valueOf(results[0])
-		//	addstatus(t); //checking the distance in mts
+			//	String t= String.valueOf(distanceDP2);//+ String.valueOf(results[0]); //String.valueOf(results[0])
+			//	addstatus(t); //checking the distance in mts
 			// Log the distances
 
-			int f=im.findSignal();
-			double dptllat=0,dptllong=0;
+			int f = im.findSignal();
+			double dptllat = 0, dptllong = 0;
 
-			GeoPoint nexttl = new GeoPoint((int)(im.tllat * 1e6),(int)(im.ltlong * 1e6));
+			GeoPoint nexttl = new GeoPoint((int) (im.tllat * 1e6), (int) (im.ltlong * 1e6));
 
-			GeoPoint l = new GeoPoint((int)(lat * 1e6),(int)(lng * 1e6));
+			GeoPoint l = new GeoPoint((int) (lat * 1e6), (int) (lng * 1e6));
 
-			if(f==1)
-			{
-				Toast.makeText(getApplicationContext(),"Found signal at ! "+ nexttl.getLatitude() + "long: "+ nexttl.getLongitude() ,Toast.LENGTH_SHORT).show();
-			//	Location.distanceBetween(dptllat, dptllong, lat, lng, tldis);
+			if (f == 1) {
+				Toast.makeText(getApplicationContext(), "Found signal at ! " + nexttl.getLatitude() + "long: " + nexttl.getLongitude(), Toast.LENGTH_SHORT).show();
+				//	Location.distanceBetween(dptllat, dptllong, lat, lng, tldis);
 
-				int r=6371;
-				double x=(nexttl.getLongitude() - l.getLongitude())*Math.cos((l.getLatitude()+nexttl.getLatitude())/2);
+				int r = 6371;
+				double x = (nexttl.getLongitude() - l.getLongitude()) * Math.cos((l.getLatitude() + nexttl.getLatitude()) / 2);
 				double y = (nexttl.getLatitude() - l.getLatitude());
-				double dis=Math.sqrt(x*x + y*y)*r;
+				double dis = Math.sqrt(x * x + y * y) * r;
 
-				String x_dis=String.valueOf(dis);
-				x_dis = x_dis.substring(2,6);
-				int new_dis=Integer.parseInt(x_dis);
-			//	int new_dis=Integer.parseInt(String.valueOf(dis).substring(3));
+				String x_dis = String.valueOf(dis);
+				x_dis = x_dis.substring(2, 6);
+				int new_dis = Integer.parseInt(x_dis);
+				//	int new_dis=Integer.parseInt(String.valueOf(dis).substring(3));
 				String t = String.valueOf(new_dis);
 				addstatus(t);
 			}
@@ -1079,23 +1078,23 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 					+ " | distanceDP1: " + distanceDP1 + " | LastDistanceDP2: "
 					+ lastDistanceDP2 + " | distanceDP2: " + distanceDP2;
 			debugger += distancesString + "\n";
-			Log.e("Navi.onLocationChanged", distancesString );
+			Log.e("Navi.onLocationChanged", distancesString);
 
 
 			// If we have been within NODE_WINDOW_DISTANCE
 			// of the next node
-			if(distanceDP1 < getApplicationContext().getResources().getInteger(R.integer.NODE_WINDOW_DISTANCE)){
+			if (distanceDP1 < getApplicationContext().getResources().getInteger(R.integer.NODE_WINDOW_DISTANCE)) {
 				beenWithinNodeWindow = true;
 			}
 			// Check the distances with the stored ones
-            // CASE 1: This is the handle when we can get close to
-            // our decision point like on city roads, but not
-            // highways where you merge off
+			// CASE 1: This is the handle when we can get close to
+			// our decision point like on city roads, but not
+			// highways where you merge off
 			if (distanceDP1 < MAX_DISTANCE_TO_DECISION_POINT) {
 				// Distance to decision point is less than
 				// MAX_DISTANCE_TO_DECISION_POINT
 
-				if(im.isOnLastInstruction()){
+				if (im.isOnLastInstruction()) {
 					// Tell User they have arrived and stop navigation
 					haveArrivedInstruction();
 					stopNavigation();
@@ -1142,19 +1141,18 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			lastDistanceDP2 = distanceDP2;
 
 
-
 			// Check if the whole guidance needs to be reloaded due to a driving
-            // error (user seems to go away from both the decision point and the
-            // decision point after next)
+			// error (user seems to go away from both the decision point and the
+			// decision point after next)
 			if (distanceCounter < (-1 * MAX_COUNTER_VALUE)) {
 				updateGuidance();
 			}
 			// Check if the instruction needs to be updated
-            // CASE 1 Extended: This handles the case where we are merging off like
-            // a highway where we can't get exactly close to decision
-            // point 1
+			// CASE 1 Extended: This handles the case where we are merging off like
+			// a highway where we can't get exactly close to decision
+			// point 1
 			if (distanceCounter > MAX_COUNTER_VALUE) {
-				if(im.isOnLastInstruction()){
+				if (im.isOnLastInstruction()) {
 					// Tell User they have arrived and stop navigation
 					haveArrivedInstruction();
 					stopNavigation();
