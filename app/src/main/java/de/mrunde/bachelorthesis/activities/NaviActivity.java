@@ -293,6 +293,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+
         if(getResources().getBoolean(R.bool.DEVELOPMENT_MODE)) {
             setContentView(R.layout.navi);
         }else
@@ -795,7 +796,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		mGray = new Mat();
 		mRgba = new Mat();
 
-		globalRF = new GlobalRF();
+		globalRF = new GlobalRF(this);
 		localRF = new LocalRF();
 		obstacleAvoidance = new ObstacleAvoidance();
 	}

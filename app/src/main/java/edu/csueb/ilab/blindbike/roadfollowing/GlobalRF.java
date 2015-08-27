@@ -1,12 +1,17 @@
 package edu.csueb.ilab.blindbike.roadfollowing;
 
+import android.content.Context;
 import android.util.Log;
 import android.widget.Toast;
 
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Rect;
+import org.opencv.core.TermCriteria;
 import org.opencv.ml.CvKNearest;
+import org.opencv.ml.EM;
+
+import java.io.InputStream;
 
 import edu.csueb.ilab.blindbike.blindbike.R;
 
@@ -91,6 +96,10 @@ public class GlobalRF {
         --------------------------
      */
 
+    EM road_em;
+    EM sky_em;
+    EM lanemarking_em;
+
     /*
         K-Nearest Neighbors class
      */
@@ -99,11 +108,36 @@ public class GlobalRF {
     /**
      * Constructor
      */
-    public GlobalRF(){
+    public GlobalRF(Context context){
         // Initialize Matrices
         localFrame = new Mat();
         sample = new Mat();
 
+        // Termination Criteria: 0 - max iterations, COUNT is default max iters which is 100, EPS is the default EPS value
+        TermCriteria termCrit = new TermCriteria(0, TermCriteria.COUNT, TermCriteria.EPS);
+
+        // Initalize GMMs for each class
+        road_em = new EM(R.integer.ROAD_GMM_MODES, EM.COV_MAT_DIAGONAL, termCrit);
+        sky_em = new EM(R.integer.SKY_GMM_MODES, EM.COV_MAT_DIAGONAL, termCrit);
+        lanemarking_em = new EM(R.integer.LANEMARKING_GMM_MODES, EM.COV_MAT_DIAGONAL, termCrit);
+
+        // Load training data
+        Mat road_data = new Mat(); // n rows (samples), 4 columns (classes)
+        Mat sky_data = new Mat();  // n rows (samples), 4 columns (classes)
+        Mat lanemarking_data = new Mat();  // n rows (samples), 4 columns (classes)
+        // TODO: Add loop to populate the training data from data file
+        InputStream ins = context.getResources().openRawResource(
+                context.getResources().getIdentifier("raw/lane_samples",
+                        "raw", context.getPackageName()));
+
+        // Train GMM for each class
+        road_em.train(road_data);
+        sky_em.train(sky_data);
+        lanemarking_em.train(lanemarking_data);
+
+
+        //region Unused KNN Test Code
+        /* K-NN TEST CODE
         // Initialize K-NN class with training data
         // TODO: ADD TRAINING DATA AS PARAMETER
         int[][] intArray = new int[][]{{2,3,4},{5,6,7},{8,9,10},{9, 9, 7},{8,7,7}}; // points
@@ -132,6 +166,8 @@ public class GlobalRF {
         knn.find_nearest(testSample, 3, results, neighborResponses, dists);
         double resultClass = results.get(0,0)[0];
         Log.i("NaviActivity", "class: " + resultClass + "\n");
+        */
+        //endregion
     }
 
     /**
@@ -168,11 +204,27 @@ public class GlobalRF {
         /*
         for(int i = 0; i < subFrame.height(); i++){
             for(int j = 0; j < subFrame.width(); j++){
-                // Set up features for this pixel
-                // Get response
-                //knn.find_nearest();
+                // For each pixel in the image determine probability
+                // it belongs to each class(road, sky, line, other)
+                // using the gaussian mixture models
+
             }
         }
         */
+        road_em.getDouble("covs");
+        double prob_road[] = new double[2];
+        prob_road = road_em.predict(sample);
+    }
+
+    /**
+     * This function will return an integer corresponding to the class
+     * that the pixel belongs to.
+     * @return c
+     */
+    private int classify(){
+        int c = 0;
+
+
+        return c;
     }
 }

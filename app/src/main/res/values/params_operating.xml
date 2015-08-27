@@ -17,4 +17,9 @@
 
     <integer name="K_NN_VALUE">4</integer>
 
+    <integer name="ROAD_GMM_MODES">1</integer>
+    <integer name="SKY_GMM_MODES">1</integer>
+    <integer name="LANEMARKING_GMM_MODES">1</integer>
+    <integer name="OTHER_GMM_MODES">1</integer>
+
 </resources>
