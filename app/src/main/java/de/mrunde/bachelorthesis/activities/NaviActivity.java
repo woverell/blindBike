@@ -30,6 +30,8 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Range;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
@@ -257,7 +259,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private TextToSpeech tts;
 
 	private boolean mIsColorSelected = false;
-
+	Mat mRgbabright;
 	private Scalar mBlobColorRgba;
 	private Scalar mBlobColorHsv;
 	//private LightDetector mDetector;
@@ -823,6 +825,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	public void onCameraViewStarted(int width, int height) {
 		mGray = new Mat();
 		mRgba = new Mat();
+		mRgbabright = new Mat();
 		mDetector = new LightDetector();
 		mSpectrum = new Mat();
 		mBlobColorRgba = new Scalar(255);
@@ -888,10 +891,20 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		// ****** I have my detection module in here ***********//
 		mRgba = inputFrame.rgba();
+		mRgba.convertTo(mRgbabright,-1,4,50);
 
-		int cols = mRgba.cols();
-		int rows = mRgba.rows();
+		int cols = mRgbabright.cols();
+		int rows = mRgbabright.rows();
 
+		//trying actual cropping
+		String w=String.valueOf(mRgbabright.rows()/2);
+		int wi=Integer.parseInt(w);
+		Rect roi = new Rect(0,0,wi,mRgbabright.cols());
+		Mat cropped = new Mat(mRgbabright, new Range(0,wi),new Range(0,mRgbabright.cols()));
+
+
+		//touched rectangle solution for cropping
+/*
 		int xOffset = (mOpenCvCameraView.getWidth() - cols) / 2;
 		int yOffset = (mOpenCvCameraView.getHeight() - rows) / 2;
 
@@ -910,14 +923,17 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		touchedRect.width = (x+4 < cols) ? x + 4 - touchedRect.x : cols - touchedRect.x;
 		touchedRect.height = (y+4 < rows) ? y + 4 - touchedRect.y : rows - touchedRect.y;
 
-		Mat touchedRegionRgba = mRgba.submat(touchedRect);
+		Mat touchedRegionRgba = mRgbabright.submat(touchedRect);
+*/
 
 		Mat touchedRegionHsv = new Mat();
-		Imgproc.cvtColor(touchedRegionRgba, touchedRegionHsv, Imgproc.COLOR_RGB2HSV_FULL);
+		//touchedRegionRgba
+		Imgproc.cvtColor(cropped, touchedRegionHsv, Imgproc.COLOR_BGR2HSV_FULL); //COLOR_RGB2HSV_FULL
 
 		// Calculate average color of touched region
 		mBlobColorHsv = Core.sumElems(touchedRegionHsv);
-		int pointCount = touchedRect.width*touchedRect.height;
+		//touchedRect.width*touchedRect.height
+		int pointCount = roi.width*roi.height;
 		for (int i = 0; i < mBlobColorHsv.val.length; i++)
 			mBlobColorHsv.val[i] /= pointCount;
 
@@ -932,23 +948,23 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		mIsColorSelected = true;
 
-		touchedRegionRgba.release();
+		//touchedRegionRgba.release();
 		touchedRegionHsv.release();
 
 		if (mIsColorSelected) {
-			mDetector.process(mRgba);
+			mDetector.process(cropped);
 			List<MatOfPoint> contours = mDetector.getContours();
 			Log.e(TAG, "Contours count: " + contours.size());
-			Imgproc.drawContours(mRgba, contours, -1, CONTOUR_COLOR);
+			Imgproc.drawContours(mRgbabright, contours, -1, CONTOUR_COLOR);
 
-			Mat colorLabel = mRgba.submat(4, 68, 4, 68);
+			Mat colorLabel = mRgbabright.submat(4, 68, 4, 68);
 			colorLabel.setTo(mBlobColorRgba);
 
-			Mat spectrumLabel = mRgba.submat(4, 4 + mSpectrum.rows(), 70, 70 + mSpectrum.cols());
+			Mat spectrumLabel = mRgbabright.submat(4, 4 + mSpectrum.rows(), 70, 70 + mSpectrum.cols());
 			mSpectrum.copyTo(spectrumLabel);
 		}
 
-		return mRgba;
+		return mRgbabright;
 	}
 
 	private Scalar converScalarHsv2Rgba(Scalar hsvColor) {

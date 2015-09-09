@@ -30,14 +30,14 @@ public class LightDetector {
     }
 
     // Lower and Upper bounds for range checking in HSV color space
-    private Scalar mLowerBound = new Scalar(352,98,98); 	//for blue 120,100,100
+    private Scalar mLowerBound = new Scalar(176,255,244); 	//for blue 120,100,100
     // for flouracent green light 57,255,20
-    private Scalar mUpperBound = new Scalar(356,99,87); 	// for blue 179,255,255 , blue cap 28,28,37
+    private Scalar mUpperBound = new Scalar(177,255,252); 	// for blue 179,255,255 , blue cap 28,28,37
     // for flouracent green light 57,255,200
     // for gray signs 76,55,28
     // for gray signs 89,62,33 ,blue cap 80,109,149
     // Minimum contour area in percent for contours filtering
-    private static double mMinContourArea = 0.1; //tried 0.4
+    private static double mMinContourArea = 0.01; //tried 0.4
     // Color radius for range checking in HSV color space
     private Scalar mColorRadius = new Scalar(25,50,50,0);	//initial val 25,50,50,0 //214,55,52,0 for the blue cap
     private Mat mSpectrum = new Mat();						//
@@ -79,7 +79,7 @@ public class LightDetector {
             spectrumHsv.put(0, j, tmp);
         }
 
-        Imgproc.cvtColor(spectrumHsv, mSpectrum, Imgproc.COLOR_HSV2RGB_FULL, 4);
+        Imgproc.cvtColor(spectrumHsv, mSpectrum, Imgproc.COLOR_HSV2BGR_FULL, 4); //COLOR_HSV2RGB_FULL
     }
 
     public Mat getSpectrum() {
@@ -97,7 +97,7 @@ public class LightDetector {
         Imgproc.pyrDown(rgbaImage, mPyrDownMat);
         Imgproc.pyrDown(mPyrDownMat, mPyrDownMat);
 
-        Imgproc.cvtColor(mPyrDownMat, mHsvMat, Imgproc.COLOR_RGB2HSV_FULL);
+        Imgproc.cvtColor(mPyrDownMat, mHsvMat, Imgproc.COLOR_BGR2HSV_FULL);
 
         Core.inRange(mHsvMat, mLowerBound, mUpperBound, mMask);
         Imgproc.dilate(mMask, mDilatedMask, new Mat());
