@@ -796,7 +796,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		mGray = new Mat();
 		mRgba = new Mat();
 
-		globalRF = new GlobalRF(this);
+		//globalRF = new GlobalRF(this);
 		localRF = new LocalRF();
 		obstacleAvoidance = new ObstacleAvoidance();
 	}
@@ -837,7 +837,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		obstacleAvoidance.processFrame(halfRgba);
 
 		// CALL ROAD FOLLOWING(William)
-		globalRF.processFrame(halfRgba);
+		//globalRF.processFrame(halfRgba);
 
 		Imgproc.pyrUp(halfRgba, halfRgba); //upsample
 		return halfRgba;
