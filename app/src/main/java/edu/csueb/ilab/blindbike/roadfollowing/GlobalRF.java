@@ -12,6 +12,7 @@ import org.opencv.ml.CvKNearest;
 import org.opencv.ml.EM;
 
 import java.io.InputStream;
+import java.io.InputStreamReader;
 
 import edu.csueb.ilab.blindbike.blindbike.R;
 
@@ -122,19 +123,25 @@ public class GlobalRF {
         lanemarking_em = new EM(R.integer.LANEMARKING_GMM_MODES, EM.COV_MAT_DIAGONAL, termCrit);
 
         // Load training data
-        Mat road_data = new Mat(); // n rows (samples), 4 columns (classes)
-        Mat sky_data = new Mat();  // n rows (samples), 4 columns (classes)
-        Mat lanemarking_data = new Mat();  // n rows (samples), 4 columns (classes)
+        // TODO: number of samples hard coded at 1000, change to however many samples are in file
+        int num_samples = 1000;
+        Mat road_data = new Mat(num_samples, 4, CvType.CV_16U); // 1000 rows (samples), 4 columns (classes)
+        Mat sky_data = new Mat(num_samples, 4, CvType.CV_16U);  // 1000 rows (samples), 4 columns (classes)
+        Mat lanemarking_data = new Mat(num_samples, 4, CvType.CV_16U);  // 1000 rows (samples), 4 columns (classes)
         // TODO: Add loop to populate the training data from data file
         InputStream ins = context.getResources().openRawResource(
                 context.getResources().getIdentifier("raw/lane_samples",
                         "raw", context.getPackageName()));
+        InputStreamReader insreader = new InputStreamReader(ins);
+        String nextChar = "";
+        while(nextChar != null){
+            Log.i("WILL","From input reader:");
+        }
 
         // Train GMM for each class
         road_em.train(road_data);
         sky_em.train(sky_data);
         lanemarking_em.train(lanemarking_data);
-
 
         //region Unused KNN Test Code
         /* K-NN TEST CODE

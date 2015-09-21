@@ -177,7 +177,7 @@ public class Navi_activity_fpscontrol extends Activity implements CameraBridgeVi
         try {
 
             mMyCamera.setPreviewFPS(Double.valueOf(1000),Double.valueOf(6000));
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return false;

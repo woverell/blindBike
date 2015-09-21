@@ -59,6 +59,9 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import android.hardware.Camera.Size;
+import edu.csueb.ilab.blindbike.blindbike.BB_Parameters;
+
 import com.mapquest.android.maps.DefaultItemizedOverlay;
 import com.mapquest.android.maps.GeoPoint;
 import com.mapquest.android.maps.LineOverlay;
@@ -84,6 +87,7 @@ import edu.csueb.ilab.blindbike.lightdetection.LightDetector;
 import edu.csueb.ilab.blindbike.obstacleavoidance.ObstacleAvoidance;
 import edu.csueb.ilab.blindbike.roadfollowing.GlobalRF;
 import edu.csueb.ilab.blindbike.roadfollowing.LocalRF;
+import edu.csueb.ilab.blindbike.blindbike.CustomizeView;
 
 /**
  * This is the navigational activity which is started by the MainActivity. It
@@ -97,13 +101,15 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private static final String TAG = "OCVSample::Activity";
 	private Mat mRgba;
 	private Mat mGray;
-	private CameraBridgeViewBase mOpenCvCameraView;
+	private CustomizeView mOpenCvCameraView;
 
 	private XCrossing xCrossing;
 	private LightDetector lightDetector;
 	private GlobalRF globalRF;
 	private LocalRF localRF;
 	private ObstacleAvoidance obstacleAvoidance;
+
+	private List<Size> mResolutionList; //list of supported resolutions by camera
 
 	// --- The indexes of the overlays ---
 	/**
@@ -344,9 +350,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// Get the guidance information and create the instructions
 		getGuidance();
 
-		mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.opencv_java_camera_view);
+		mOpenCvCameraView = (CustomizeView) findViewById(R.id.opencv_java_camera_view);
 		mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
 		mOpenCvCameraView.setCvCameraViewListener(this);
+
+		//mOpenCvCameraView.mCamera is null
 	}
 
 	/**
@@ -783,6 +791,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		// Initialize OpenCV manager
 		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_9, this, mLoaderCallback); // CHRIS: What should the version actually be?
+
+		//this.mOPenCVCameraView.MCamera is still null here
 	}
 
 	@Override
@@ -796,9 +806,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		mGray = new Mat();
 		mRgba = new Mat();
 
-		globalRF = new GlobalRF(this);
+		//globalRF = new GlobalRF(this);
 		localRF = new LocalRF();
 		obstacleAvoidance = new ObstacleAvoidance();
+
+		//do we maybe setup the camera parameters here??? this.mOPenCVCameraView.mCamera is valid
+		this.mOpenCvCameraView.setClosestResolution(BB_Parameters.idealResolutionLow_width, BB_Parameters.idealResolutionLow_height, BB_Parameters.idealResolutionHigh_width, BB_Parameters.idealResolutionHigh_width);
 	}
 
 	public void onCameraViewStopped() {
@@ -837,7 +850,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		obstacleAvoidance.processFrame(halfRgba);
 
 		// CALL ROAD FOLLOWING(William)
-		globalRF.processFrame(halfRgba);
+		//globalRF.processFrame(halfRgba);
 
 		Imgproc.pyrUp(halfRgba, halfRgba); //upsample
 		return halfRgba;
@@ -870,6 +883,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			Log.e("MainActivity",
 					"Failed to initialize the TextToSpeech engine");
 		}
+
+
+		//mOPenCVCameraView.mCamera is still null here
+
 	}
 
 	@Override
