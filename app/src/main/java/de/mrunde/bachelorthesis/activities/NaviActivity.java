@@ -812,6 +812,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		//do we maybe setup the camera parameters here??? this.mOPenCVCameraView.mCamera is valid
 		this.mOpenCvCameraView.setClosestResolution(BB_Parameters.idealResolutionLow_width, BB_Parameters.idealResolutionLow_height, BB_Parameters.idealResolutionHigh_width, BB_Parameters.idealResolutionHigh_width);
+		/*try {
+			this.mOpenCvCameraView.setPreviewFPS(1000, 2000);
+		}catch(Exception e1){
+			Log.e("FPS", "FPS SETTING ERROR");
+		}*/
 	}
 
 	public void onCameraViewStopped() {

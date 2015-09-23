@@ -40,7 +40,7 @@
         android:orientation="horizontal"
         android:weightSum="1">
 
-        <org.opencv.android.JavaCameraView
+        <edu.csueb.ilab.blindbike.blindbike.CustomizeView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="0.5"
