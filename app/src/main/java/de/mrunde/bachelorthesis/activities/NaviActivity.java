@@ -806,7 +806,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		mGray = new Mat();
 		mRgba = new Mat();
 
-		//globalRF = new GlobalRF(this);
+		globalRF = new GlobalRF(this);
 		localRF = new LocalRF();
 		obstacleAvoidance = new ObstacleAvoidance();
 
@@ -824,14 +824,6 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 	public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 		mRgba = inputFrame.rgba();
-		// Step 1: Downsize Image???
-			// If it's running at 1080p that means the resolution is 1920x1080
-			// Downsampling by 2 would lead 960x540
-			// Downsampling by 4 would lead 480x270
-		Mat halfRgba = new Mat();
-		Imgproc.pyrDown(mRgba, halfRgba); // Downsample
-		Log.i("NaviActivityHalf", "width: " + halfRgba.width() + "height: " + halfRgba.height() + "\n");
-
 
 		int width = mRgba.width();
 		int height = mRgba.height();
@@ -849,16 +841,15 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// NOTE: Looking at the org.opencv.android.FpsMeter
 
 		// Light Detection
-		lightDetector.processFrame(halfRgba);
+		lightDetector.processFrame(mRgba);
 
 		// Obstacle Detection
-		obstacleAvoidance.processFrame(halfRgba);
+		obstacleAvoidance.processFrame(mRgba);
 
 		// CALL ROAD FOLLOWING(William)
-		//globalRF.processFrame(halfRgba);
+		mRgba = globalRF.processFrame(mRgba);
 
-		Imgproc.pyrUp(halfRgba, halfRgba); //upsample
-		return halfRgba;
+		return mRgba;
 	}
 
 	@Override

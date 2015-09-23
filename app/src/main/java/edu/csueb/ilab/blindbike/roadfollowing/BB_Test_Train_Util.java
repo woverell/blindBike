@@ -5,7 +5,7 @@ package edu.csueb.ilab.blindbike.roadfollowing;
  */
 public class BB_Test_Train_Util {
     // This is the file path to the source code where the .dat files are located
-    public static String filepath_to_code_source = "C:\\Users\\Will\\Desktop\\Eclipse Android Workspace\\BlindBike Training Filters\\src\\";
+    public static String filepath_to_code_source = "file:///android_asset/";
 
     // This is the number of components of the feature vector (RGB currently)
     public final static int featureVectorDimension = 3;

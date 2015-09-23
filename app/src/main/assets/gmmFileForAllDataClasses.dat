@@ -1,0 +1,10 @@
+3
+sky
+0 0 255
+gmmparameters_classSky.dat
+road
+255 0 0
+gmmparameters_classRoad.dat
+lanemarking
+255 255 255
+gmmparameters_classLanemarking.dat

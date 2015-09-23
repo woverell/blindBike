@@ -1,11 +1,11 @@
 package edu.csueb.ilab.blindbike.roadfollowing;
 
+import android.content.Context;
+import android.util.Log;
+
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
@@ -15,24 +15,13 @@ import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.highgui.Highgui;
 
 /**
  * Created by Will on 9/21/2015.
  */
 public class Filter_Utility {
-    static void classifyImageIntoDataClasses(Mat featureMat, Vector<GMM> gmms, String filename, Vector imgVector){
-        try {
-            File f = new File(filename + ".dat");
-            FileOutputStream fo = new FileOutputStream(f);
+    static Mat classifyImageIntoDataClasses(Vector<GMM> gmms, Mat img){
 
-            DataOutputStream dos = new DataOutputStream(fo);
-            f = new File(filename + "_Summary.dat");
-            FileOutputStream fo2 = new FileOutputStream(f);
-
-            DataOutputStream dos2 = new DataOutputStream(fo2);
-
-            boolean oneImage = false; // this will be true if there is only one image being processed, if only one image then output pseudocolor image
             int[][] classArray = null;
             int imgHeight = -1;
             int imgWidth = -1;
@@ -43,12 +32,10 @@ public class Filter_Utility {
             for(int c =0; c< gmms.size(); c++)
                 count_Classes[c] = 0;
 
-            if(imgVector.size() == 1){
-                oneImage = true;
-                imgHeight = ((Mat)imgVector.elementAt(0)).rows();
-                imgWidth = ((Mat)imgVector.elementAt(0)).cols();
+
+                imgHeight = img.rows();
+                imgWidth = img.cols();
                 classArray = new int[imgHeight][imgWidth];
-            }
 
             long startTime = System.currentTimeMillis();
             // Step 1: Cycle through every feature vector (each feature vector corresponds to a pixel)
@@ -58,10 +45,12 @@ public class Filter_Utility {
             int rowNum = 0;
             int colNum = 0;
 
-            nextFeatureVector = (Mat)imgVector.firstElement();
+            nextFeatureVector = img;
             for(int i = 0; i < nextFeatureVector.rows(); i++){
                 for(int j = 0; j < nextFeatureVector.cols(); j++){
-                    sample = nextFeatureVector.get(i, j);
+                    sample[0] = nextFeatureVector.get(i, j)[0];
+                    sample[1] = nextFeatureVector.get(i, j)[1];
+                    sample[2] = nextFeatureVector.get(i, j)[2];
 
                     // Cycle through GMM list to figure out which class has the highest probability
                     double max = -10;
@@ -83,69 +72,29 @@ public class Filter_Utility {
                     else
                         count_Classes[class_index] += 1;
 
-                    if(oneImage){
-                        classArray[rowNum][colNum] = class_index;
-                        colNum++;
-                        if(colNum%imgWidth == 0){
-                            colNum = 0;
-                            rowNum++;
-                        }
+                    classArray[rowNum][colNum] = class_index;
+                    colNum++;
+                    if(colNum%imgWidth == 0){
+                        colNum = 0;
+                        rowNum++;
                     }
 
-
-                    // THIS MEANS THIS SAMPLE BELONGS TO CLASS_INDEX WHAT DO I DO WITH THIS INFORMATION???
-                    if(BB_Test_Train_Util.VERBOSE)
-                        System.out.println("Sample:" + sample.toString() + "\r\n" + "class = " + class_index + " with probability " + max + "\r\n");
-                    if(BB_Test_Train_Util.VERBOSE == true)
-                        dos.writeBytes("Sample:" + sample.toString() + "\r\n" + "class = " + class_index + " with probability " + max + "\r\n");
                 }
             }
 
-            long endTime   = System.currentTimeMillis();
-            long totalTime = endTime - startTime;
-            System.out.println((double)totalTime/1000);
 
-            if(oneImage){
-                Mat pseudoImage = createPseudoImage(classArray, gmms);
-                Highgui.imwrite(BB_Test_Train_Util.filepath_to_code_source + "pseudoColor.png", pseudoImage);
-            }
+            Mat pseudoImage = createPseudoImage(classArray, gmms);
 
-            dos2.writeBytes("Number of Total Samples = " + featureMat.height() + "\r\n\r\n"  );
-            if(BB_Test_Train_Util.VERBOSE)
-                System.out.println("Number of Total Samples = " + featureMat.height() + "\r\n\r\n"  );
-
-            dos2.writeBytes("For class index= -1  w/ name= NO_CLASS  #classified = " + count_NO_CLASS + "\r\n\r\n" );
-            if(BB_Test_Train_Util.VERBOSE)
-                System.out.println("For class index= -1  w/ name= NO_CLASS" + count_NO_CLASS + "\r\n\r\n" );
-
-            for(int g = 0; g < gmms.size(); g++){
-                dos2.writeBytes("For class index= " + g + " w/ name= " + gmms.elementAt(g).className + "  # classified = " + count_Classes[g] + "\r\n\r\n" );
-                if(BB_Test_Train_Util.VERBOSE)
-                    System.out.println("For class index= " + g + " w/ name= " + gmms.elementAt(g).className + "  # classified = " + count_Classes[g] + "\r\n\r\n" );
-
-            }
-
-
-            dos.close();
-            fo.close();
-            dos2.flush();
-            dos2.close();
-            fo2.close();
-
-        }catch(IOException e){}
+            return pseudoImage;
 
     }
 
-    static Vector<GMM> readParametersForMixtureOfGaussiansForAllDataClasses(String gmmsfilename){
+    static Vector<GMM> readParametersForMixtureOfGaussiansForAllDataClasses(String gmmsfilename, Context context){
         Vector<GMM> gmms = new Vector();
         // Step 1: Cycle through each class's file representing its GMM (Gaussian Mixture Model)
 
         try {
-            File f = new File(gmmsfilename);
-            FileReader fr = new FileReader(f);
-            BufferedReader br = new BufferedReader(fr);
-
-            FileReader fr2;
+            BufferedReader br = new BufferedReader(new InputStreamReader(context.getAssets().open(gmmsfilename)));
             BufferedReader br2;
             StringTokenizer st;
             // Read in first line containing number of data classes
@@ -175,9 +124,7 @@ public class Filter_Utility {
                 // Step 2: Read in current class's GMM and create an instance of the jMEF.PVectorMatrix for use
                 // in the call of MultivariateGaussian.density(*)
                 // Also store weight for GMM
-                f = new File(gmm.fileName);
-                fr2 = new FileReader(f);
-                br2 = new BufferedReader(fr2);
+                br2 = new BufferedReader(new InputStreamReader(context.getAssets().open(gmm.fileName)));
 
                 gmm.numCluster = Integer.parseInt(br2.readLine());
 
@@ -264,10 +211,8 @@ public class Filter_Utility {
                 //add created gmm to the ggms vector
                 gmms.add(gmm);
                 br2.close();
-                fr2.close();
             }
             br.close();
-            fr.close();
 
             return gmms;
 
@@ -277,6 +222,7 @@ public class Filter_Utility {
 
         } catch (IOException e) {
             // TODO Auto-generated catch block
+            Log.i("WILLGMM", e.toString());
             e.printStackTrace();
             return null;
         }

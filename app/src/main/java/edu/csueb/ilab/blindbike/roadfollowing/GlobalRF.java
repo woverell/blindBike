@@ -1,6 +1,7 @@
 package edu.csueb.ilab.blindbike.roadfollowing;
 
 import android.content.Context;
+import android.content.res.AssetFileDescriptor;
 import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
@@ -12,6 +13,7 @@ import org.opencv.core.TermCriteria;
 import org.opencv.ml.CvKNearest;
 import org.opencv.ml.EM;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Vector;
@@ -111,24 +113,9 @@ public class GlobalRF {
 
         gmms = new Vector();
 
-        gmms = Filter_Utility.readParametersForMixtureOfGaussiansForAllDataClasses(BB_Test_Train_Util.filepath_to_code_source + "gmmFileForAllDataClasses.dat");
 
-        // Load training data
-        // TODO: number of samples hard coded at 1000, change to however many samples are in file
-        int num_samples = 1000;
-        Mat road_data = new Mat(num_samples, 4, CvType.CV_16U); // 1000 rows (samples), 4 columns (classes)
-        Mat sky_data = new Mat(num_samples, 4, CvType.CV_16U);  // 1000 rows (samples), 4 columns (classes)
-        Mat lanemarking_data = new Mat(num_samples, 4, CvType.CV_16U);  // 1000 rows (samples), 4 columns (classes)
-        // TODO: Add loop to populate the training data from data file
-        InputStream ins = context.getResources().openRawResource(
-                context.getResources().getIdentifier("raw/lane_samples",
-                        "raw", context.getPackageName()));
-        InputStreamReader insreader = new InputStreamReader(ins);
-        String nextChar = "";
-        while(nextChar != null){
-            Log.i("WILL","From input reader:");
-        }
-
+        gmms = Filter_Utility.readParametersForMixtureOfGaussiansForAllDataClasses("gmmFileForAllDataClasses.dat", context);
+        Log.i("WILLGMM", gmms.elementAt(0).className);
 
     }
 
@@ -154,8 +141,8 @@ public class GlobalRF {
      * Processes imgFrame to find edge of road.
      * @param imgFrame
      */
-    public void processFrame(final Mat imgFrame) {
-        imgFrame.copyTo(localFrame); // Copy to local so can modify
+    public Mat processFrame(Mat imgFrame) {
+        //imgFrame.copyTo(localFrame); // Copy to local so can modify
 
         // PHASE 3: Set Region of Interest
         //subFrame = localFrame.submat(regionOfInterest);
@@ -163,16 +150,9 @@ public class GlobalRF {
         // PHASE 4: Homographic Transform (TBD)
 
         // PHASE 5: Classification (pixels -> classes)
-        /*
-        for(int i = 0; i < subFrame.height(); i++){
-            for(int j = 0; j < subFrame.width(); j++){
-                // For each pixel in the image determine probability
-                // it belongs to each class(road, sky, line, other)
-                // using the gaussian mixture models
 
-            }
-        }
-        */
+        imgFrame = Filter_Utility.classifyImageIntoDataClasses(gmms, imgFrame);
+        return imgFrame;
     }
 
     /**
