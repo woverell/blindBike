@@ -75,6 +75,15 @@ public class CustomizeView extends JavaCameraView{
         { Log.i("CustomizeView: ", "no supported camera resolutions range in BB_Parameters" + low_width +"," + low_height +") to (" + high_width + ","+ high_height +")");
             return; }
 
+        // set resolution and scale parameters
+        BB_Parameters.runningResolution_height = bestHeight;
+        BB_Parameters.runningResolution_width = bestWidth;
+        BB_Parameters.scaleFactor_height = (double)bestHeight / (double)BB_Parameters.trainingResolution_height;
+        BB_Parameters.scaleFactor_width = (double)bestWidth / (double)BB_Parameters.trainingResolution_width;
+
+        if(BB_Parameters.scaleFactor_height > 1.0 || BB_Parameters.scaleFactor_width > 1.0){
+            Log.i("PARAMETERS", "Parameter scale factor greater than 1.0, meaning we are trying to increase resolution rather than decrease");
+        }
 
         //this means we found a resolution in the range we found
         disconnectCamera();

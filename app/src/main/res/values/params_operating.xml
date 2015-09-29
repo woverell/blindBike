@@ -13,7 +13,7 @@
 
     <integer name="DOWNSAMPLE_TIMES">1</integer>
 
-    <integer name="REGION_OF_INTEREST_PERCENT">20</integer>
+    <integer name="CUTOFF_AREA_OF_INTEREST">200</integer>
 
     <integer name="K_NN_VALUE">4</integer>
 

@@ -18,6 +18,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Vector;
 
+import edu.csueb.ilab.blindbike.blindbike.BB_Parameters;
 import edu.csueb.ilab.blindbike.blindbike.R;
 
 /**
@@ -120,50 +121,26 @@ public class GlobalRF {
     }
 
     /**
-     *  This function takes the original frame size of the image
-     *  and sets the proper region of interest for the downsampled
-     *  frame based on number of times downsampled and the
-     *  region of interest percent.
-     * @param height of original frame
-     * @param width of original frame
-     */
-    public void setROI(int height, int width){
-        // Adjust height and width based on downsampling
-        // TODO: CHECK IF MATCHES UP WITH DOWNSAMPLED IMAGE SIZE
-        height = height / (R.integer.DOWNSAMPLE_TIMES * 2);
-        width = width / (R.integer.DOWNSAMPLE_TIMES * 2);
-        // Set region of interest rectangle, eliminate top REGION_OF_INTEREST_PERCENT percent
-        this.regionOfInterest = new Rect(0, (int) ((R.integer.REGION_OF_INTEREST_PERCENT / 100.0) * height), width, height);
-    }
-
-    /**
-     * This is the primary method of the GlobalRF class.
-     * Processes imgFrame to find edge of road.
+     * This method accepts as input an rgba image frame and finds a road edge.
+     * First each pixel in imgFrame inside the region of interest (set in BB_Parameters)
+     * is classified into classes(road, sky, lane line, unknown).  During this process a
+     * pseudo color image is created and the calculation/display of this can be toggled
+     * on/off in BB_Parameters.java using the pseudo_Calculation parameter.
+     *
      * @param imgFrame
      */
-    public Mat processFrame(Mat imgFrame) {
-        //imgFrame.copyTo(localFrame); // Copy to local so can modify
+    public void processFrame(Mat imgFrame) {
 
-        // PHASE 3: Set Region of Interest
-        //subFrame = localFrame.submat(regionOfInterest);
+        // PHASE 3: Area of Interest
+        int heightCutoff = (int)(BB_Parameters.cutOff_Area_Of_Interest * BB_Parameters.scaleFactor_height); // adjusting for scale
+        Mat regionOfInterest = imgFrame.submat(heightCutoff, imgFrame.height(), 0, imgFrame.width());
 
         // PHASE 4: Homographic Transform (TBD)
 
-        // PHASE 5: Classification (pixels -> classes)
+        // PHASE 5: Classification
+        Filter_Utility.classifyImageIntoDataClasses(gmms, regionOfInterest);
 
-        imgFrame = Filter_Utility.classifyImageIntoDataClasses(gmms, imgFrame);
-        return imgFrame;
-    }
+        // PHASE 6: Blob Detection
 
-    /**
-     * This function will return an integer corresponding to the class
-     * that the pixel belongs to.
-     * @return c
-     */
-    private int classify(){
-        int c = 0;
-
-
-        return c;
     }
 }

@@ -847,7 +847,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		obstacleAvoidance.processFrame(mRgba);
 
 		// CALL ROAD FOLLOWING(William)
-		mRgba = globalRF.processFrame(mRgba);
+		globalRF.processFrame(mRgba);
 
 		return mRgba;
 	}

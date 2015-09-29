@@ -17,8 +17,8 @@ public class GMM {
     // Name of corresponding data class this gmm is modeling
     String className;
 
-    // Pseudocolor used to represent this class
-    double pseudocolor[] = new double[3];
+    // Pseudocolor used to represent this class. 4 = (r,g,b,a)
+    double pseudocolor[] = new double[4];
 
     // Name of gmm data file containing gmm parameters
     String fileName;
@@ -29,8 +29,13 @@ public class GMM {
     // Vector of minimum probability to be within - 2 * std dev of mean
     Vector minimum_probability_to_be_in_cluster = new Vector();
 
-    // Using the density method of the multivariate gaussian class to calculate for each cluster the probability
-    // multiplied by its weight and sum them up to return the probability the sample belongs to this gmm
+    /**
+     * Using the density method of the multivariate gaussian class to calculate for each cluster
+     * the probability multiplied by its weight and sum them up to return the probability the sample
+     * belongs to this gmm
+     * @param sample
+     * @return probability
+     */
     double predict(double[] sample){
         double probability = 0.0;
         double temp;
@@ -58,6 +63,13 @@ public class GMM {
         return probability;
     }
 
+    /**
+     * This method takes as input the array of means and a two dimensional array
+     * with the covariance matrix values and creats a new multivariate normal
+     * distribution and adds it to the GMM gaussians vector.
+     * @param means
+     * @param covarianceMat
+     */
     public void addGaussian(double[] means, double[][] covarianceMat)
     {
         MultivariateNormalDistribution toAdd = new MultivariateNormalDistribution(means, covarianceMat);

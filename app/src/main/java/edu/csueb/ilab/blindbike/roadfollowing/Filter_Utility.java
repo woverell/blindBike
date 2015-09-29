@@ -16,11 +16,13 @@ import org.apache.commons.math3.linear.RealVector;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
+import edu.csueb.ilab.blindbike.blindbike.BB_Parameters;
+
 /**
  * Created by Will on 9/21/2015.
  */
 public class Filter_Utility {
-    static Mat classifyImageIntoDataClasses(Vector<GMM> gmms, Mat img){
+    static void classifyImageIntoDataClasses(Vector<GMM> gmms, Mat img){
 
             int[][] classArray = null;
             int imgHeight = -1;
@@ -82,10 +84,9 @@ public class Filter_Utility {
                 }
             }
 
-
-            Mat pseudoImage = createPseudoImage(classArray, gmms);
-
-            return pseudoImage;
+        // If pseudo creation parameter is true then create pseudo image
+        if(BB_Parameters.pseudo_Creation)
+            createPseudoImage(classArray, gmms, img);
 
     }
 
@@ -116,6 +117,7 @@ public class Filter_Utility {
                 gmm.pseudocolor[0] = Integer.parseInt(st.nextToken());
                 gmm.pseudocolor[1] = Integer.parseInt(st.nextToken());
                 gmm.pseudocolor[2] = Integer.parseInt(st.nextToken());
+                gmm.pseudocolor[3] = Integer.parseInt(st.nextToken());
 
                 // Read in filename for gmm parameters
                 gmm.fileName = br.readLine();
@@ -234,15 +236,17 @@ public class Filter_Utility {
 
     /**
      * This method takes as input a matrix of same dimensions as original image
-     * that contains the class label of each pixel and returns a pseudo-color
-     * image.
-     * @param classArray, gmms
+     * that contains the class label of each pixel, the vector of GMMs, and
+     * a matrix to put the pseudo image.  The method uses the classArray values
+     * to modify the pixels in pseudoImage to represent the r,g,b,a value associated
+     * with that class.
+     * @param classArray
+     * @param gmms
+     * @param pseudoImage
      */
-    static Mat createPseudoImage(int[][] classArray, Vector<GMM> gmms){
+    static void createPseudoImage(int[][] classArray, Vector<GMM> gmms, Mat pseudoImage){
         int imgWidth = classArray.length;
         int imgHeight = classArray[1].length;
-
-        Mat pseudoImage = new Mat(imgWidth, imgHeight, CvType.CV_8UC3);
 
         for(int i = 0; i < imgWidth; i++){
             for(int j = 0; j < imgHeight; j++){
@@ -253,7 +257,5 @@ public class Filter_Utility {
                     pseudoImage.put(i, j, gmms.elementAt(classArray[i][j]).pseudocolor); // Note: each gmm in the gmm vector has associated with it a data class gmm.className
             }
         }
-
-        return pseudoImage;
     }
 }
