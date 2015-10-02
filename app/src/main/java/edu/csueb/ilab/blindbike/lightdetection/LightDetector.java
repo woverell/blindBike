@@ -30,9 +30,9 @@ public class LightDetector {
     }
 
     // Lower and Upper bounds for range checking in HSV color space
-    private Scalar mLowerBound = new Scalar(176,255,244); 	//for blue 120,100,100
+    private Scalar mLowerBound = new Scalar(1,1,30); 	//for blue 120,100,100 Current: 176,255,244 ::perfect working Green 70,20,100
     // for flouracent green light 57,255,20
-    private Scalar mUpperBound = new Scalar(177,255,252); 	// for blue 179,255,255 , blue cap 28,28,37
+    private Scalar mUpperBound = new Scalar(175,48,175); 	// for blue 179,255,255 , blue cap 28,28,37 Current: 177,255,252:: perfect working Green 85,35,125
     // for flouracent green light 57,255,200
     // for gray signs 76,55,28
     // for gray signs 89,62,33 ,blue cap 80,109,149
@@ -120,9 +120,9 @@ public class LightDetector {
         mContours.clear();
         each = contours.iterator();
         while (each.hasNext()) {
-            MatOfPoint contour = each.next();
-            if (Imgproc.contourArea(contour) > mMinContourArea*maxArea) {
-                Core.multiply(contour, new Scalar(4,4), contour);
+            MatOfPoint contour = each.next();       //Current: >=50 && <200
+            if (Imgproc.contourArea(contour) >= 9700 || Imgproc.contourArea(contour)<25200) {  //mMinContourArea*maxArea //red 30 300-440 green 510 1600
+                Core.multiply(contour, new Scalar(4,4), contour);               //Perfect working: Green 880 || 1800
 
                 mContours.add(contour);
             }
