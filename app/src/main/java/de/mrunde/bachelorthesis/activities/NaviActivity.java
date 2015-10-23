@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,6 +46,10 @@ import android.content.DialogInterface.OnCancelListener;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
@@ -78,6 +83,7 @@ import com.mapquest.android.maps.OverlayItem;
 import com.mapquest.android.maps.RouteManager;
 
 import de.mrunde.bachelorthesis.instructions.DistanceInstruction;
+import edu.csueb.ilab.blindbike.blindbike.CustomizeView;
 import edu.csueb.ilab.blindbike.blindbike.EntranceActivity;
 import edu.csueb.ilab.blindbike.blindbike.R;
 import de.mrunde.bachelorthesis.basics.Landmark;
@@ -114,6 +120,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private LocalRF localRF;
 	private ObstacleAvoidance obstacleAvoidance;
 
+	private CustomizeView mMyCamera;
 	// --- The indexes of the overlays ---
 	/**
 	 * Index of the local landmark overlay
@@ -251,6 +258,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private final int MAX_COUNTER_VALUE = 5;
 
+	//Calculate bounding box variables
+	float Tmin=0,Tmax=0;
+	double min_row_bound=0.0,max_row_bound=0.0;
 	// --- End of route and instruction objects ---
 
 	/**
@@ -278,6 +288,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 	private double dptl;
 
+	// Light sensor variables
+	private SensorManager mSensorManager;
+	private Sensor mLightSensor;
+	private float mLightQuantity;
 
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
 		@Override
@@ -355,6 +369,32 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			Log.e("Test", "Location not available");
 		}
 
+		//Obtain references to the sensormanager and the Light Sensor
+		mSensorManager =(SensorManager)getSystemService(SENSOR_SERVICE);
+		mLightSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
+
+		SensorEventListener listener = new SensorEventListener() {
+
+			@Override
+			public void onSensorChanged(SensorEvent event) {
+				// TODO Auto-generated method stub
+				//mLightQuantity is the value of Brightness
+				mLightQuantity = event.values[0];
+
+			}
+
+			@Override
+			public void onAccuracyChanged(Sensor sensor, int accuracy) {
+				// TODO Auto-generated method stub
+
+			}
+		};
+
+		// For getting focal length we use Customize view
+		//mMyCamera= CustomizeView.class.cast(findViewById(R.id.tutorial1_activity_java_surface_view));
+		//Register the listener with light sensor
+		mSensorManager.registerListener(listener, mLightSensor,SensorManager.SENSOR_DELAY_UI);
+
 		// Setup the whole GUI and map
 		setupGUI();
 		setupMapView();
@@ -369,7 +409,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// Get the guidance information and create the instructions
 		getGuidance();
 
-		mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.opencv_java_camera_view);
+	//	mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.opencv_java_camera_view);
+		mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.tutorial1_activity_java_surface_view);
+		mMyCamera= CustomizeView.class.cast(findViewById(R.id.tutorial1_activity_java_surface_view));
 		mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
 		mOpenCvCameraView.setCvCameraViewListener(this);
 	}
@@ -834,6 +876,29 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		CONTOUR_COLOR = new Scalar(255,0,0,255);
 	}
 
+	public double Calculate_rows()
+	{
+		//trying values
+		/*double min_row_bound=0.0,max_row_bound=0.0,sc_min=0.0,sc_max=0.0;
+		double f=4.8;
+		int lr=360;
+		double r_min=487.68,r_max=579.12,d=4000,b=20; *///initially we take D=40 mts = 4000cm
+
+		//exit sign
+		double sc_min=0.0,sc_max=0.0;
+		double f=4.8;
+		int lr=360;
+		double r_min=10.00,r_max=70.00,d=1524,b=20;
+
+		Tmin=(float)Math.toDegrees(Math.atan((r_min-b)/d));
+		sc_min=f*(Math.tan(Tmin));
+		min_row_bound=sc_min+lr;
+
+		Tmax=(float)Math.toDegrees(Math.atan(((r_max-b)/d)));
+		sc_max=f*Math.tan(Tmax);
+		max_row_bound=sc_max+lr;
+		return 0;
+	}
 	public void onCameraViewStopped() {
 		mRgba.release();
 	}
@@ -897,11 +962,22 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		int rows = mRgbabright.rows();
 
 		//trying actual cropping
-		String w=String.valueOf(mRgbabright.rows()/2);
+		/*String w=String.valueOf(mRgbabright.rows()/2);
 		int wi=Integer.parseInt(w);
 		Rect roi = new Rect(0,0,wi,mRgbabright.cols());
-		Mat cropped = new Mat(mRgbabright, new Range(0,wi),new Range(0,mRgbabright.cols()));
+		Mat cropped = new Mat(mRgbabright, new Range(0,wi),new Range(0,mRgbabright.cols()));*/
+		String w="";
+		int wi=0;
+		double v=Calculate_rows();
+	//	w=String.valueOf(max_row_bound - min_row_bound);
+		if((max_row_bound - min_row_bound)<0)
+		{
+			wi=(int)Math.abs(max_row_bound - min_row_bound);
+			wi=wi+60;
+		}
 
+		Rect roi = new Rect(0,0,wi,mRgbabright.cols());
+		Mat cropped = new Mat(mRgbabright, new Range(0,wi),new Range(0,mRgbabright.cols()));
 
 		//touched rectangle solution for cropping
 /*
@@ -977,6 +1053,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 	@Override
 	public boolean onTouch(View v, MotionEvent event) {
+		Toast.makeText(v.getContext(),"Brightness Val: "+mLightQuantity,Toast.LENGTH_SHORT).show();
+		float focal_length = mMyCamera.getFocalLength();
+		Toast.makeText(v.getContext(), "Focal length: " + focal_length, Toast.LENGTH_SHORT).show();
 		return false;
 	}
 
@@ -1074,7 +1153,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			GeoPoint l = new GeoPoint((int) (lat * 1e6), (int) (lng * 1e6));
 
 			if (f == 1) {
-				Toast.makeText(getApplicationContext(), "Found signal at ! " + nexttl.getLatitude() + "long: " + nexttl.getLongitude(), Toast.LENGTH_SHORT).show();
+			//	Toast.makeText(getApplicationContext(), "Found signal at ! " + nexttl.getLatitude() + "long: " + nexttl.getLongitude(), Toast.LENGTH_SHORT).show();
 				//	Location.distanceBetween(dptllat, dptllong, lat, lng, tldis);
 
 				int r = 6371;
