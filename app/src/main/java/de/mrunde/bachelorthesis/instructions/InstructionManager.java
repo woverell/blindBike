@@ -1,12 +1,24 @@
 package de.mrunde.bachelorthesis.instructions;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.protocol.HttpContext;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.location.Location;
+import android.os.AsyncTask;
 import android.util.Log;
 
 import com.mapquest.android.maps.GeoPoint;
@@ -17,6 +29,7 @@ import de.mrunde.bachelorthesis.basics.Route;
 import de.mrunde.bachelorthesis.basics.RouteSegment;
 import de.mrunde.bachelorthesis.basics.StreetFurniture;
 import de.mrunde.bachelorthesis.basics.StreetFurnitureCategory;
+import edu.csueb.ilab.blindbike.lightdetection.Traffic_light_Data;
 
 /**
  * The InstructionManager handles turn events in the navigation process. It can
@@ -95,7 +108,10 @@ public class InstructionManager {
 	 * Intersections to be used
 	 */
 	private List<GeoPoint> intersections;
+
+	private double lat,lng,altitude_final=0;
 	public double tllat,ltlong;
+	ArrayList<Traffic_light_Data> tld_array_list;
 	/**
 	 * Constructor of the InstructionManager class
 	 * 
@@ -225,10 +241,16 @@ public class InstructionManager {
 					+ i + ": " + this.streetFurniture.get(i).toString());
 		}
 	}
-	public int findSignal()
-	{
 
-		int flg=0;
+	// Prepare a Traffic light data Structure to store all traffic light
+	// coordinates which we will array through throughout the application lifecycle
+	// until we reach our destination
+
+	public void init_traffic_light_list()
+	{
+		tld_array_list=new ArrayList<Traffic_light_Data>();
+		Traffic_light_Data tld_obj;
+		float altitude=0;
 		for(int i=0;i<this.streetFurniture.size();i++)
 		{
 			StreetFurniture st = this.streetFurniture.get(i);
@@ -236,7 +258,49 @@ public class InstructionManager {
 
 			if(st.getCategory().equalsIgnoreCase("traffic light"))
 			{
+				tld_obj=new Traffic_light_Data();
+				tld_obj.setCenter(st.getCenter());
+				tld_obj.setCategory(st.getCategory());
+				tld_obj.setLat(st.getCenter().getLatitude());
+				tld_obj.setLng(st.getCenter().getLongitude());
+/*				double elevation;
+				GeoPoint g = new GeoPoint(st.getCenter().getLatitude(),st.getCenter().getLongitude());
+				Location loc = new Location("pta");
+				loc.setLatitude(g.getLatitude());
+				loc.setLongitude(g.getLongitude());
+				loc.setAccuracy(333);
+				loc.setBearing(333);
+				elevation=loc.getAltitude();*/
+				lat = st.getCenter().getLatitude();
+				lng = st.getCenter().getLongitude();
+
+				tld_obj.setAltitude(look_for_altitude(st.getCenter().getLatitude(),st.getCenter().getLongitude()));
+				tld_obj.setCrossed(false);
+				tld_array_list.add(tld_obj);
+			}
+		}
+	}
+
+	private double look_for_altitude(double lat,double lng)
+	{
+		double result=0;
+		RetrieveData rd = new RetrieveData();
+		rd.execute("lets","try");
+		return altitude_final;
+	}
+
+	public int findSignal() {
+
+		int flg=0;
+		for(int i=0;i<this.streetFurniture.size();i++)
+		{
+			StreetFurniture st = this.streetFurniture.get(i);
+			Log.v("ChrisResults", st.getCategory());
+			init_traffic_light_list();
+			if(st.getCategory().equalsIgnoreCase("traffic light"))
+			{
 				flg=1;
+
 				tllat=st.getCenter().getLatitude();
 				ltlong=st.getCenter().getLongitude();
 			}
@@ -999,4 +1063,59 @@ public class InstructionManager {
 			return false;
 		}
 	}
+
+	private class RetrieveData extends AsyncTask<String, Void, String>{
+
+		double result= Double.NaN;
+		@Override
+		protected String doInBackground(String... params) {
+
+			HttpClient httpClient = new DefaultHttpClient();
+			HttpContext localContext = new BasicHttpContext();
+			String url="http://maps.googleapis.com/maps/api/elevation/"
+					+ "xml?locations=" + String.valueOf(lat) + "," + String.valueOf(lng)+
+					"&sensor=true";
+
+			HttpGet httpGet = new HttpGet(url);
+			StringBuilder json = new StringBuilder();
+			try
+			{
+				HttpResponse response = httpClient.execute(httpGet,localContext);
+				HttpEntity entity = response.getEntity();
+
+				if(entity !=null)
+				{
+					InputStream inputStream=entity.getContent();
+					int r=-1;
+					while ((r=inputStream.read())!= -1)
+					{
+						json.append((char) r);
+					}
+					String tagOpen = "<elevation>";
+					String tagClose = "</elevation>";
+
+					if(json.indexOf(tagOpen)!= -1)
+					{
+						int start = json.indexOf(tagOpen) + tagOpen.length();
+						int end = json.indexOf(tagClose);
+						String value= json.substring(start,end);
+						result = (double)(Double.parseDouble(value));
+					}
+					inputStream.close();
+				}
+			}
+			catch(IOException ie)
+			{
+				ie.printStackTrace();
+			}
+			return String.valueOf(result);
+		}
+
+		@Override
+		protected void onPostExecute(String message) {
+			altitude_final=result;
+		}
+
+	}
 }
+

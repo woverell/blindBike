@@ -16,6 +16,7 @@ public class CustomizeView extends JavaCameraView{
 
     private static final String TAG = "Sample::Tutorial3View";
     private String mPictureFileName;
+    Camera.Parameters cameraParameters;
 
     public CustomizeView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -48,5 +49,13 @@ public class CustomizeView extends JavaCameraView{
         }*/
         params.setPreviewFpsRange((int)(10000),(int)(12000));
         mCamera.setParameters(params);
+    }
+
+    public float getFocalLength()
+    {
+        cameraParameters = mCamera.getParameters();
+        Camera.CameraInfo myinfo = new Camera.CameraInfo();
+        float l=cameraParameters.getFocalLength();
+        return l;
     }
 }

@@ -8,6 +8,7 @@ import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Toast;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
@@ -38,6 +39,7 @@ public class Navi_activity_fpscontrol extends Activity implements CameraBridgeVi
     private boolean mIsCameraFrontFacing;
     // The number of cameras on the device.
     private int mNumCameras;
+
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -177,6 +179,8 @@ public class Navi_activity_fpscontrol extends Activity implements CameraBridgeVi
         try {
 
             mMyCamera.setPreviewFPS(Double.valueOf(1000),Double.valueOf(6000));
+
+
         } catch (IOException e) {
             e.printStackTrace();
         }

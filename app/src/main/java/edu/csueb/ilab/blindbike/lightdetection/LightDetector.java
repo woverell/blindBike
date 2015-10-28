@@ -37,7 +37,7 @@ public class LightDetector {
     // for gray signs 76,55,28
     // for gray signs 89,62,33 ,blue cap 80,109,149
     // Minimum contour area in percent for contours filtering
-    private static double mMinContourArea = 0.01; //tried 0.4
+    private static double mMinContourArea = 0.01; //<></>ried 0.4
     // Color radius for range checking in HSV color space
     private Scalar mColorRadius = new Scalar(25,50,50,0);	//initial val 25,50,50,0 //214,55,52,0 for the blue cap
     private Mat mSpectrum = new Mat();						//
