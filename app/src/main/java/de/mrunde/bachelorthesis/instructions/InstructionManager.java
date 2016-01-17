@@ -246,6 +246,59 @@ public class InstructionManager {
 	// coordinates which we will array through throughout the application lifecycle
 	// until we reach our destination
 
+	public double getLocAlt(final double lat,final double lng)
+	{
+
+
+/*
+		Runnable runnable = new Runnable() {
+
+			@Override
+			public void run() {
+				double result= Double.NaN;
+				HttpClient httpClient = new DefaultHttpClient();
+				HttpContext localContext = new BasicHttpContext();
+				String url="http://maps.googleapis.com/maps/api/elevation/"
+						+ "xml?locations=" + String.valueOf(lat) + "," + String.valueOf(lng)+
+						"&sensor=true";
+
+				HttpGet httpGet = new HttpGet(url);
+				StringBuilder json = new StringBuilder();
+				try {
+					HttpResponse response = httpClient.execute(httpGet, localContext);
+					HttpEntity entity = response.getEntity();
+
+					if (entity != null) {
+						InputStream inputStream = entity.getContent();
+						int r = -1;
+						while ((r = inputStream.read()) != -1) {
+							json.append((char) r);
+						}
+						String tagOpen = "<elevation>";
+						String tagClose = "</elevation>";
+
+						if (json.indexOf(tagOpen) != -1) {
+							int start = json.indexOf(tagOpen) + tagOpen.length();
+							int end = json.indexOf(tagClose);
+							String value = json.substring(start, end);
+							result = (double) (Double.parseDouble(value));
+							altitude_final = result;
+						}
+						inputStream.close();
+					}
+
+				}
+				catch(IOException ie)
+				{
+					ie.printStackTrace();
+				}
+
+				}
+		};*/
+
+		return altitude_final;
+	}
+
 	public void init_traffic_light_list()
 	{
 		tld_array_list=new ArrayList<Traffic_light_Data>();
@@ -273,8 +326,8 @@ public class InstructionManager {
 				elevation=loc.getAltitude();*/
 				lat = st.getCenter().getLatitude();
 				lng = st.getCenter().getLongitude();
-
-				tld_obj.setAltitude(look_for_altitude(st.getCenter().getLatitude(),st.getCenter().getLongitude()));
+				//look_for_altitude
+				tld_obj.setAltitude(getLocAlt(st.getCenter().getLatitude(), st.getCenter().getLongitude()));
 				tld_obj.setCrossed(false);
 				tld_array_list.add(tld_obj);
 			}
@@ -284,8 +337,8 @@ public class InstructionManager {
 	private double look_for_altitude(double lat,double lng)
 	{
 		double result=0;
-		RetrieveData rd = new RetrieveData();
-		rd.execute("lets","try");
+	//	RetrieveData rd = new RetrieveData();
+	//	rd.execute("lets","try");
 		return altitude_final;
 	}
 
@@ -296,13 +349,14 @@ public class InstructionManager {
 		{
 			StreetFurniture st = this.streetFurniture.get(i);
 			Log.v("ChrisResults", st.getCategory());
-			init_traffic_light_list();
+		//	init_traffic_light_list();
 			if(st.getCategory().equalsIgnoreCase("traffic light"))
 			{
 				flg=1;
 
 				tllat=st.getCenter().getLatitude();
 				ltlong=st.getCenter().getLongitude();
+				break;
 			}
 			else
 				flg=0;
@@ -1064,7 +1118,7 @@ public class InstructionManager {
 		}
 	}
 
-	private class RetrieveData extends AsyncTask<String, Void, String>{
+	/*private class RetrieveData extends AsyncTask<String, Void, String>{
 
 		double result= Double.NaN;
 		@Override
@@ -1100,6 +1154,7 @@ public class InstructionManager {
 						int end = json.indexOf(tagClose);
 						String value= json.substring(start,end);
 						result = (double)(Double.parseDouble(value));
+						altitude_final=result;
 					}
 					inputStream.close();
 				}
@@ -1116,6 +1171,6 @@ public class InstructionManager {
 			altitude_final=result;
 		}
 
-	}
+	}*/
 }
 

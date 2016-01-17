@@ -291,7 +291,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	// Light sensor variables
 	private SensorManager mSensorManager;
 	private Sensor mLightSensor;
+	private Sensor mPressureSensor;
 	private float mLightQuantity;
+	private float altitude = 0;
 
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
 		@Override
@@ -372,7 +374,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		//Obtain references to the sensormanager and the Light Sensor
 		mSensorManager =(SensorManager)getSystemService(SENSOR_SERVICE);
 		mLightSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-
+		mPressureSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
 		SensorEventListener listener = new SensorEventListener() {
 
 			@Override
@@ -380,7 +382,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				// TODO Auto-generated method stub
 				//mLightQuantity is the value of Brightness
 				mLightQuantity = event.values[0];
-
+				float presure = event.values[0];
+				altitude = SensorManager.getAltitude(SensorManager.PRESSURE_STANDARD_ATMOSPHERE, presure);
+				Log.i("CHRIS: Altitude ",String.valueOf(altitude));
 			}
 
 			@Override
@@ -887,15 +891,19 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		//exit sign
 		double sc_min=0.0,sc_max=0.0;
 		double f=4.8;
-		int lr=360;
-		double r_min=10.00,r_max=70.00,d=1524,b=20;
-
+		int lr=360;		//center row of the image
+	//	double r_min=10.00,r_max=70.00,d=1524,b=20;
+	//	double r_min=180.00,r_max=240.00,d=2000,b=110;	//Dim of the note on the wall
+		double r_min=480.00,r_max=700.00,d=6000,b=110;	//Dim of the Traffic Light b=110
+		//values: for d = 100 steps for 30 mts; 67 steps for 20 mts; 33 steps for 10 mts
 		Tmin=(float)Math.toDegrees(Math.atan((r_min-b)/d));
 		sc_min=f*(Math.tan(Tmin));
+		Log.i("CHRIS Vals: ",String.valueOf(Math.tan(Tmin)));
 		min_row_bound=sc_min+lr;
 
 		Tmax=(float)Math.toDegrees(Math.atan(((r_max-b)/d)));
 		sc_max=f*Math.tan(Tmax);
+		Log.i("CHRIS Vals:",String.valueOf(Math.tan(Tmax)));
 		max_row_bound=sc_max+lr;
 		return 0;
 	}
@@ -974,6 +982,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		{
 			wi=(int)Math.abs(max_row_bound - min_row_bound);
 			wi=wi+60;
+		}
+		else
+		{
+			wi=(int)Math.abs(max_row_bound - min_row_bound);
+			wi+=60;
 		}
 
 		Rect roi = new Rect(0,0,wi,mRgbabright.cols());
