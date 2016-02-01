@@ -30,16 +30,16 @@ public class LightDetector {
     }
 
     // Lower and Upper bounds for range checking in HSV color space
-    private Scalar mLowerBound = new Scalar(1,1,30); 	//for blue 120,100,100 Current: 176,255,244 ::perfect working Green 70,20,100
+    private Scalar mLowerBound = new Scalar(0); 	//for blue 120,100,100 Current: 176,255,244 ::perfect working Green 70,20,100
     // for flouracent green light 57,255,20
-    private Scalar mUpperBound = new Scalar(175,48,175); 	// for blue 179,255,255 , blue cap 28,28,37 Current: 177,255,252:: perfect working Green 85,35,125
+    private Scalar mUpperBound = new Scalar(0); 	// for blue 179,255,255 , blue cap 28,28,37 Current: 177,255,252:: perfect working Green 85,35,125
     // for flouracent green light 57,255,200
     // for gray signs 76,55,28
     // for gray signs 89,62,33 ,blue cap 80,109,149
     // Minimum contour area in percent for contours filtering
     private static double mMinContourArea = 0.01; //<></>ried 0.4
     // Color radius for range checking in HSV color space
-    private Scalar mColorRadius = new Scalar(25,50,50,0);	//initial val 25,50,50,0 //214,55,52,0 for the blue cap
+    private Scalar mColorRadius = new Scalar(10,15,15,0);	//initial val 25,50,50,0 //10,15,15,0 works perfect for Red
     private Mat mSpectrum = new Mat();						//
     private List<MatOfPoint> mContours = new ArrayList<MatOfPoint>();
 
@@ -52,6 +52,9 @@ public class LightDetector {
 
     SimpleDateFormat df= new SimpleDateFormat("yyyy_MM_dd_HH_mm_yyyy");
 
+    //Status Found or not Found
+    private String tl_status="";
+
     public void setColorRadius(Scalar radius) {
         mColorRadius = radius;
     }
@@ -60,17 +63,20 @@ public class LightDetector {
         double minH = (hsvColor.val[0] >= mColorRadius.val[0]) ? hsvColor.val[0]-mColorRadius.val[0] : 0;
         double maxH = (hsvColor.val[0]+mColorRadius.val[0] <= 255) ? hsvColor.val[0]+mColorRadius.val[0] : 255;
 
-        mLowerBound.val[0] = minH;
-        mUpperBound.val[0] = maxH;
+        //Red Perfect values 170 249 234 - 175 255 255
+        //Green Perfect Values 60-15,100,100  - 60+15,255,255
+        //Amber Perfect Values
+       /* mLowerBound.val[0] = 84;
+        mUpperBound.val[0] = 86;
 
-        mLowerBound.val[1] = hsvColor.val[1] - mColorRadius.val[1];
-        mUpperBound.val[1] = hsvColor.val[1] + mColorRadius.val[1];
+        mLowerBound.val[1] = 150;//hsvColor.val[1] - mColorRadius.val[1];
+        mUpperBound.val[1] = 193;//hsvColor.val[1] + mColorRadius.val[1];
 
-        mLowerBound.val[2] = hsvColor.val[2] - mColorRadius.val[2];
-        mUpperBound.val[2] = hsvColor.val[2] + mColorRadius.val[2];
+        mLowerBound.val[2] = 226;//hsvColor.val[2] - mColorRadius.val[2];
+        mUpperBound.val[2] = 255;//hsvColor.val[2] + mColorRadius.val[2];
 
         mLowerBound.val[3] = 0;
-        mUpperBound.val[3] = 255;
+        mUpperBound.val[3] = 255;*/
 
         Mat spectrumHsv = new Mat(1, (int)(maxH-minH), CvType.CV_8UC3);
 
@@ -97,6 +103,7 @@ public class LightDetector {
         Imgproc.pyrDown(rgbaImage, mPyrDownMat);
         Imgproc.pyrDown(mPyrDownMat, mPyrDownMat);
 
+
         Imgproc.cvtColor(mPyrDownMat, mHsvMat, Imgproc.COLOR_BGR2HSV_FULL);
 
         Core.inRange(mHsvMat, mLowerBound, mUpperBound, mMask);
@@ -105,6 +112,54 @@ public class LightDetector {
         List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
 
         Imgproc.findContours(mDilatedMask, contours, mHierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        //My code to change the mLowerBound and mUpperBound if contours.size==0
+        if(contours.size() == 0) {
+            if(tl_status.equalsIgnoreCase("")) {
+                mLowerBound.val[0] = 170;
+                mUpperBound.val[0] = 175;
+
+                mLowerBound.val[1] = 249;//hsvColor.val[1] - mColorRadius.val[1];
+                mUpperBound.val[1] = 255;//hsvColor.val[1] + mColorRadius.val[1];
+
+                mLowerBound.val[2] = 234;//hsvColor.val[2] - mColorRadius.val[2];
+                mUpperBound.val[2] = 255;//hsvColor.val[2] + mColorRadius.val[2];
+
+                mLowerBound.val[3] = 0;
+                mUpperBound.val[3] = 255;
+                tl_status = "Set Red";
+            }
+            else if(tl_status.equalsIgnoreCase("Set Red") && contours.size()==0)
+            {
+                mLowerBound.val[0] = 60-15;
+                mUpperBound.val[0] = 60+15;
+
+                mLowerBound.val[1] = 100;//hsvColor.val[1] - mColorRadius.val[1];
+                mUpperBound.val[1] = 255;//hsvColor.val[1] + mColorRadius.val[1];
+
+                mLowerBound.val[2] = 100;//hsvColor.val[2] - mColorRadius.val[2];
+                mUpperBound.val[2] = 255;//hsvColor.val[2] + mColorRadius.val[2];
+
+                mLowerBound.val[3] = 0;
+                mUpperBound.val[3] = 255;
+                tl_status = "Set Green";
+            }
+            else if(tl_status.equalsIgnoreCase("Set Green") && contours.size()==0)
+            {
+                mLowerBound.val[0] = 170;
+                mUpperBound.val[0] = 175;
+
+                mLowerBound.val[1] = 249;//hsvColor.val[1] - mColorRadius.val[1];
+                mUpperBound.val[1] = 255;//hsvColor.val[1] + mColorRadius.val[1];
+
+                mLowerBound.val[2] = 234;//hsvColor.val[2] - mColorRadius.val[2];
+                mUpperBound.val[2] = 255;//hsvColor.val[2] + mColorRadius.val[2];
+
+                mLowerBound.val[3] = 0;
+                mUpperBound.val[3] = 255;
+                tl_status = "Set Red";
+            }
+        }
 
         // Find max contour area
         double maxArea = 0;
@@ -120,8 +175,8 @@ public class LightDetector {
         mContours.clear();
         each = contours.iterator();
         while (each.hasNext()) {
-            MatOfPoint contour = each.next();       //Current: >=50 && <200
-            if (Imgproc.contourArea(contour) >= 9700 || Imgproc.contourArea(contour)<25200) {  //mMinContourArea*maxArea //red 30 300-440 green 510 1600
+            MatOfPoint contour = each.next();       //Current: >=50 && <200 //testig at jan 9700 || 25200
+            if (Imgproc.contourArea(contour) >= 49656 || Imgproc.contourArea(contour)<53177) {  //mMinContourArea*maxArea //red 30 300-440 green 510 1600
                 Core.multiply(contour, new Scalar(4,4), contour);               //Perfect working: Green 880 || 1800
 
                 mContours.add(contour);
@@ -151,13 +206,13 @@ public class LightDetector {
             //draw enclosing rectangle
             Mat ROI = rgbaImage.submat(rect.y, rect.y + rect.height, rect.x, rect.x + rect.width);
 
-            save= Highgui.imwrite(filename,ROI);
-            if (save == true)
-                Log.i("Save Status", "SUCCESS writing image to external storage");
-            else
-                Log.i("Save Status", "Fail writing image to external storage");
+     //       save= Highgui.imwrite(filename,ROI);
+     //       if (save == true)
+     //           Log.i("Save Status", "SUCCESS writing image to external storage");
+     //       else
+      //          Log.i("Save Status", "Fail writing image to external storage");
 
-            Core.rectangle(rgbaImage, new Point(rect.x,rect.y), new Point(rect.x+rect.width,rect.y+rect.height),new Scalar(255,0,0,255),3);
+            Core.rectangle(rgbaImage, new Point(rect.x,rect.y), new Point(rect.x+rect.width,rect.y+rect.height),new Scalar(255,225,0,0),3);
         }
 
 

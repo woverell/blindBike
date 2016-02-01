@@ -261,6 +261,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	//Calculate bounding box variables
 	float Tmin=0,Tmax=0;
 	double min_row_bound=0.0,max_row_bound=0.0;
+	double min_row_bound_low=0.0,max_row_bound_low=0.0;
 	// --- End of route and instruction objects ---
 
 	/**
@@ -894,7 +895,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		int lr=360;		//center row of the image
 	//	double r_min=10.00,r_max=70.00,d=1524,b=20;
 	//	double r_min=180.00,r_max=240.00,d=2000,b=110;	//Dim of the note on the wall
-		double r_min=480.00,r_max=700.00,d=6000,b=110;	//Dim of the Traffic Light b=110
+		double r_min=480.00,r_max=700.00,d=3000,b=110;	//Dim of the Traffic Light b=110
 		//values: for d = 100 steps for 30 mts; 67 steps for 20 mts; 33 steps for 10 mts
 		Tmin=(float)Math.toDegrees(Math.atan((r_min-b)/d));
 		sc_min=f*(Math.tan(Tmin));
@@ -905,6 +906,21 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		sc_max=f*Math.tan(Tmax);
 		Log.i("CHRIS Vals:",String.valueOf(Math.tan(Tmax)));
 		max_row_bound=sc_max+lr;
+		//invert values to get the max and min above 360
+		min_row_bound = 720 - min_row_bound;
+		max_row_bound = 720 - max_row_bound;
+		//Error correction
+
+
+		//-100 for lower light now trying -200
+		min_row_bound_low = min_row_bound -100;
+		max_row_bound_low = max_row_bound -100;
+
+		min_row_bound = min_row_bound -200;
+		max_row_bound = max_row_bound -200;
+
+		///for 2500 as it has less rows in betwen &5000
+		max_row_bound = max_row_bound + 40;
 		return 0;
 	}
 	public void onCameraViewStopped() {
@@ -964,8 +980,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		// ****** I have my detection module in here ***********//
 		mRgba = inputFrame.rgba();
-		mRgba.convertTo(mRgbabright,-1,4,50);
+		//adding brightness for dark conditions
+		//mRgba.convertTo(mRgbabright,-1,4,50);
 
+		mRgbabright=mRgba.clone();
 		int cols = mRgbabright.cols();
 		int rows = mRgbabright.rows();
 
@@ -978,6 +996,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		int wi=0;
 		double v=Calculate_rows();
 	//	w=String.valueOf(max_row_bound - min_row_bound);
+		v=min_row_bound;
 		if((max_row_bound - min_row_bound)<0)
 		{
 			wi=(int)Math.abs(max_row_bound - min_row_bound);
@@ -990,6 +1009,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		}
 
 		Rect roi = new Rect(0,0,wi,mRgbabright.cols());
+
 		Mat cropped = new Mat(mRgbabright, new Range(0,wi),new Range(0,mRgbabright.cols()));
 
 		//touched rectangle solution for cropping
@@ -1017,8 +1037,17 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		Mat touchedRegionHsv = new Mat();
 		//touchedRegionRgba
-		Imgproc.cvtColor(cropped, touchedRegionHsv, Imgproc.COLOR_BGR2HSV_FULL); //COLOR_RGB2HSV_FULL
+		int row_start=(int)min_row_bound;
+		int row_end=(int)max_row_bound;
+		int row_start_low=(int)min_row_bound_low;
+		int row_end_low=(int)max_row_bound_low;
 
+		Mat cropped_rect=mRgbabright.submat(row_start,row_end,100,700);//row_start,row_end,col_start,col_end
+		//trying for lower signal
+		Mat cropped_rect_low=mRgbabright.submat(row_start_low,row_end_low,100,700);//row_start,row_end,col_start,col_end
+
+		Imgproc.cvtColor(cropped_rect, touchedRegionHsv, Imgproc.COLOR_BGR2HSV_FULL); //COLOR_RGB2HSV_FULL
+		touchedRegionHsv.copyTo(cropped_rect_low);
 		// Calculate average color of touched region
 		mBlobColorHsv = Core.sumElems(touchedRegionHsv);
 		//touchedRect.width*touchedRect.height
@@ -1041,7 +1070,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		touchedRegionHsv.release();
 
 		if (mIsColorSelected) {
-			mDetector.process(cropped);
+			mDetector.process(cropped_rect);
 			List<MatOfPoint> contours = mDetector.getContours();
 			Log.e(TAG, "Contours count: " + contours.size());
 			Imgproc.drawContours(mRgbabright, contours, -1, CONTOUR_COLOR);
