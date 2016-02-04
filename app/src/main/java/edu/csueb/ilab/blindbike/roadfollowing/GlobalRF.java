@@ -1,25 +1,29 @@
 package edu.csueb.ilab.blindbike.roadfollowing;
 
 import android.content.Context;
-import android.content.res.AssetFileDescriptor;
-import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
 
+import org.opencv.core.Core;
+import org.opencv.core.Size;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Point;
 import org.opencv.core.Rect;
-import org.opencv.core.TermCriteria;
-import org.opencv.ml.CvKNearest;
-import org.opencv.ml.EM;
+import org.opencv.core.Scalar;
+import org.opencv.highgui.Highgui;
+import org.opencv.imgproc.Imgproc;
+import org.osmdroid.tileprovider.IMapTileProviderCallback;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Vector;
+import java.util.List;
 
 import edu.csueb.ilab.blindbike.blindbike.BB_Parameters;
-import edu.csueb.ilab.blindbike.blindbike.R;
 
 /**
  * Created by Lynne on 5/22/2015.   new111
@@ -76,31 +80,15 @@ public class GlobalRF {
     private int bike_tilt;
 
     /*
-        Region of Interest
-        Set columns in params_operating.xml
-        REGION_OF_INTEREST_COLUMNS value
-     */
-    private Rect regionOfInterest;
-
-    /*
         ---------------------------
         END OF OPERATING CONDITIONS
         ---------------------------
      */
 
-    /*
-        -------------------
-        MATRIX DECLARATIONS
-        -------------------
-     */
-        private Mat localFrame;
-        private Mat subFrame;
-        private Mat sample;
-    /*
-        --------------------------
-        END OF MATRIX DECLARATIONS
-        --------------------------
-     */
+    Mat roadBinaryImage;
+    Mat hierarchy;
+
+    java.util.Random pseudoColorRandom;
 
     Vector<GMM> gmms;
 
@@ -108,16 +96,50 @@ public class GlobalRF {
      * Constructor
      */
     public GlobalRF(Context context){
-        // Initialize Matrices
-        localFrame = new Mat();
-        sample = new Mat();
 
         gmms = new Vector();
 
+        pseudoColorRandom = new java.util.Random((new java.util.Date()).getTime());
 
-        gmms = Filter_Utility.readParametersForMixtureOfGaussiansForAllDataClasses("gmmFileForAllDataClasses.dat", context);
-        Log.i("WILLGMM", gmms.elementAt(0).className);
+        //Initialize roadBinaryImage
+        roadBinaryImage = new Mat(BB_Parameters.runningResolution_height - (int)(BB_Parameters.cutOff_Area_Of_Interest * BB_Parameters.scaleFactor_height), BB_Parameters.runningResolution_width, CvType.CV_8UC1);
+        hierarchy = new Mat();
 
+        if(BB_Parameters.classifyByMultipleClasses == true)
+            gmms = Filter_Utility.readParametersForMixtureOfGaussiansForAllDataClasses("gmmFileForAllDataClasses.dat", context, BB_Parameters.std_dev_range_factor);
+        else
+            gmms = Filter_Utility.readParametersForMixtureOfGaussiansForAllDataClasses("gmmFileForAllDataClasses.dat", context, BB_Parameters.std_dev_range_factor_small);
+
+    }
+
+    void Erosion( Mat toErode, int erosion_size)
+    {
+        // The other options were MORPH_CROSS or MORPH_ELLIPSE
+        int erosion_type = Imgproc.MORPH_RECT;
+
+        Mat element = Imgproc.getStructuringElement(erosion_type,
+                new Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+                new Point(erosion_size, erosion_size));
+
+        /// Apply the erosion operation
+        Imgproc.erode(toErode, toErode, element);
+    }
+
+    /**
+     * Method to dialate the input (toDialate) image
+     * @param toDilate  input and alters to new dialated image
+     * @param dilation_size
+     */
+    void Dilation( Mat toDilate, int dilation_size)
+    {
+        // other opetions were MORPH_CROSS or MORPH_ELLIPSE
+        int dilation_type = Imgproc.MORPH_RECT;
+
+        Mat element = Imgproc.getStructuringElement( dilation_type,
+                new Size( 2*dilation_size + 1, 2*dilation_size+1 ),
+                new Point( dilation_size, dilation_size ) );
+        /// Apply the dilation operation
+        Imgproc.dilate(toDilate, toDilate, element);
     }
 
     /**
@@ -131,16 +153,266 @@ public class GlobalRF {
      */
     public void processFrame(Mat imgFrame) {
 
+        // if the image is empty then don't process anything or if stage to display is original image
+        if(imgFrame.empty())
+            return;
+
         // PHASE 3: Area of Interest
         int heightCutoff = (int)(BB_Parameters.cutOff_Area_Of_Interest * BB_Parameters.scaleFactor_height); // adjusting for scale
+
+        // regionOfInterest is a submat of imgFrame, any changes to regionOfInterset will change imgFrame
         Mat regionOfInterest = imgFrame.submat(heightCutoff, imgFrame.height(), 0, imgFrame.width());
 
         // PHASE 4: Homographic Transform (TBD)
 
+
         // PHASE 5: Classification
-        Filter_Utility.classifyImageIntoDataClasses(gmms, regionOfInterest);
+        // Create and display pseudo colored image of all classes if stage to display is set to 1
+        if(BB_Parameters.classifyByMultipleClasses == true) {
+            Filter_Utility.classifyImageIntoDataClasses(gmms, regionOfInterest, this.roadBinaryImage);
+
+        }
+        // ELSE Create the ONLY by road road binary image(this.roadBinaryImage)
+        else {
+            Filter_Utility.classifyImageIntoDataClass(gmms.elementAt(BB_Parameters.gmm_road_class_index), regionOfInterest, this.roadBinaryImage);
+        }
+
+        // If stageToDisplay set to 2 then display the roadBinaryImage
+        if (BB_Parameters.displayRoadBinaryImage == true) {
+            Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, gmms.elementAt(BB_Parameters.gmm_road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
+
+        }
 
         // PHASE 6: Blob Detection
+        List<MatOfPoint> contours = new ArrayList<MatOfPoint>(); // This will store the contours
 
+        // Find Contours Notes: takes binary image as input, stores each contour as a MatOfPoint (all contours in contours list),
+        // hierarchy contains information about the topology of the image(probably we don't need), mode is the contour retrieval
+        // mode, and method is the contour approximation method.  These last two values are set using openCV values.
+        if(BB_Parameters.perform_Erosion_Dilation){
+            // Going to dilate and erode to try to close gaps CHECK PERFORMANCE
+            this.Dilation(this.roadBinaryImage, BB_Parameters.dilation_value);
+            this.Erosion(this.roadBinaryImage, BB_Parameters.erosion_Value);
+            if(BB_Parameters.displayRoadDialateErode == true) {
+                Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, gmms.elementAt(BB_Parameters.gmm_road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
+                return;
+            }
+        }
+
+        // Find contours in the roadBinaryImage
+        Imgproc.findContours(this.roadBinaryImage, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+
+
+        // Phase 7: Identification of Road Blob
+        Iterator<MatOfPoint> each = contours.iterator(); // this will iterate through each contour
+        MatOfPoint topContours[] = new MatOfPoint[2];
+        double areaOfTopContours[] = new double[2];
+        topContours[0] = null;
+        topContours[1] = null;
+
+        while(each.hasNext()){
+            MatOfPoint nextContour = each.next(); // get the next blob
+
+            if(BB_Parameters.displayAllContours == true) {
+                List<MatOfPoint> nextContourList = new ArrayList<MatOfPoint>();
+                nextContourList.add(nextContour);
+                Imgproc.drawContours(regionOfInterest, nextContourList, -1, new Scalar(pseudoColorRandom.nextInt(255), pseudoColorRandom.nextInt(255), pseudoColorRandom.nextInt(255)));
+            }
+
+            double contourArea = Imgproc.contourArea(nextContour); // Can possibly ignore and look for small "blob" by looking at contour length instead
+
+            Log.i("ContourArea:", Double.toString(contourArea));
+            Log.i("ContourHeight", Double.toString(nextContour.size().height));
+            Log.i("ContourWidth", Double.toString(nextContour.size().width));
+            // 7.1: Small blob elimination
+            if(contourArea > BB_Parameters.minNumberBlobPixels) {
+                //Log.i("ContourArea:", Double.toString(contourArea));
+                //Log.i("ContourHeight", Double.toString(nextContour.size().height));
+                //Log.i("ContourWidth", Double.toString(nextContour.size().width));
+
+                // Determine if connected to the front wheel of the bike
+                // Will be connected to the front wheel of the bike if
+                // contains pixels in bottom center of the frame
+                // IDEA: Have polygon corresponding to the tire of the bike/
+                // bottom center of image
+                // and intersect this polygon with the contour, if the intersection
+                // is not empty then this blob touches the tire (not sure how computationally
+                // intensive this intersection would be
+
+                // Step 7.3: take top 2 blobs based on size and being lower in the image and
+                // to the right and pass them to phase 8 may want to use dilation to merge blobs
+                // before selection the question is performance
+                // Solution = largest 2 blobs in the lower right blob search area specified by BB_Parameters.startingRow,startingColumn
+                // and the lower right pixel location of the entire image
+                if(isInBlobSearchArea(nextContour)){
+                    if(topContours[0] == null){
+                        topContours[0] = nextContour;
+                        areaOfTopContours[0] = contourArea;
+                    }else if(topContours[1] == null && contourArea < areaOfTopContours[0]){
+                        topContours[1] = nextContour;
+                        areaOfTopContours[1] = contourArea;
+                    }else if(topContours[1] == null)
+                    {
+                        topContours[1] = topContours[0];
+                        areaOfTopContours[1] = areaOfTopContours[0];
+                        topContours[0] = nextContour;
+                        areaOfTopContours[0] = contourArea;
+                    }
+                    else if(contourArea > areaOfTopContours[0]){
+                        topContours[1] = topContours[0];
+                        areaOfTopContours[1] = areaOfTopContours[0];
+                        topContours[0] = nextContour;
+                        areaOfTopContours[0] = contourArea;
+                    }else if(contourArea > areaOfTopContours[1]){
+                        topContours[1] = nextContour;
+                        areaOfTopContours[1] = contourArea;
+                    }
+                }
+
+                // What if we aren't on the road?  Use largest road blob??
+            }else{
+                //each.remove(); // If not min number of pixels then remove
+            }
+        }
+
+
+        // Draw the top 2 contours
+        if(topContours[0] != null && topContours[1] == null && BB_Parameters.displayTopTwoContours ==true)
+            Imgproc.drawContours(regionOfInterest, Arrays.asList(topContours[0]), -1, new Scalar(255,0,0));
+        else if (topContours[0] != null && topContours[1] != null && BB_Parameters.displayTopTwoContours == true)
+            Imgproc.drawContours(regionOfInterest, Arrays.asList(topContours), -1, new Scalar(255,0,0));
+        if (topContours[0] != null && BB_Parameters.displayTopTwoContours == true)
+            Imgproc.drawContours(regionOfInterest, Arrays.asList(topContours[0]), -1, new Scalar(255,0,255));
+
+        // Step 8: processing the topContours[] which contains zero, one or two contour elements
+        // Perform Hough Transform on contours to find vertical lines
+        // Step 8.1: Make binary image from contours
+        // Make new mat same size as original image and
+        // Initalize all pixels in binaryContourImage to 0,0,0
+        Mat binaryContourImage = new Mat(regionOfInterest.size(), CvType.CV_8UC1, new Scalar(0));
+        Mat lines = new Mat();
+        // Draw contour onto binaryContourImage fill with 255
+        if (topContours[0] != null && topContours[1] == null)
+            Imgproc.drawContours(binaryContourImage, Arrays.asList(topContours[0]), -1, new Scalar(255), 1);
+        else if (topContours[0] != null && topContours[1] != null)
+            Imgproc.drawContours(binaryContourImage, Arrays.asList(topContours), -1, new Scalar(255), 1);
+
+        if (BB_Parameters.displayBinaryContourImage)
+            Filter_Utility.displayBooleanImage(binaryContourImage, regionOfInterest, new double[]{255,255,255,255}, new double[]{0,0,0,255});
+
+
+        // Run Hough Transform on binaryContourImage
+        Imgproc.HoughLines(binaryContourImage, lines, BB_Parameters.houghRhoResolution_PercentRunningResolution_AccumulatorSpace, BB_Parameters.houghThetaResolution_AccumulatorSpace, BB_Parameters.houghMinNumVotes);
+        //Imgproc.HoughLinesP(binaryContourImage, lines, BB_Parameters.houghRhoResolution_PercentRunningResolution_AccumulatorSpace, BB_Parameters.houghThetaResolution_AccumulatorSpace, BB_Parameters.houghMinNumVotes);
+
+        // Draw lines on imgFrame
+        for (int i = lines.cols() - 1; i >= 0; i--) {
+            double[] currentLine = lines.get(0, i);
+            double rho = currentLine[0];
+            double theta = currentLine[1];
+            Log.i("Line", "Num:" + Integer.toString(i) +" rho:" + Double.toString(rho) + " theta" + Double.toString(theta));
+            //if (theta > Math.PI / 180 * BB_Parameters.lineSelectionAngleRangeHigh || theta < Math.PI / 180 * BB_Parameters.lineSelectionAngleRangeLow) {
+                //Point pt1 = new Point(currentLine[0],currentLine[1]);
+                //Point pt2 = new Point(currentLine[2], currentLine[3]);
+                Point pt1 = new Point();
+                Point pt2 = new Point();
+
+                double a = Math.cos(theta), b = Math.sin(theta);
+                double x0 = a * rho, y0 = b * rho;
+                pt1.x = Math.round(x0 + 1000 * (-b));
+                pt1.y = Math.round(y0 + 1000 * (a));
+                pt2.x = Math.round(x0 - 1000 * (-b));
+                pt2.y = Math.round(y0 - 1000 * (a));
+
+                if(BB_Parameters.displayHoughLines == true) {
+                    if (i == 0)
+                        Core.line(regionOfInterest, pt1, pt2, new Scalar(0, 0, 0));// black
+                    else if (i == 1)
+                        Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 0, 0)); // red
+                    else if (i == 2)
+                        Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 255, 0)); // yellow
+                    else if (i == 3)
+                        Core.line(regionOfInterest, pt1, pt2, new Scalar(0, 255, 255)); // teal
+                    else if (i == 4)
+                        Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 100, 0)); // white
+                    //else
+                        //Core.line(regionOfInterest, pt1, pt2, new Scalar(0, 0, 255));
+                }
+            //}
+        }
+
+
+
+
+        /*
+        // Other Idea: Take furthest right point of blob, then take all points with column within x
+        // of the column value of that point and use to fit a line
+        Mat lineparams = null;
+        if(topContours[0] != null) {
+            lineparams = findLineFromPointsWithinRangeFromFurthestRightPoint(topContours[0], 10);
+            Core.line(imgFrame, new Point(lineparams.get(2,0)[0]-10*lineparams.get(0, 0)[0], lineparams.get(3, 0)[0]-10*lineparams.get(1, 0)[0]), new Point(lineparams.get(2, 0)[0]+10*lineparams.get(0, 0)[0], lineparams.get(3, 0)[0]+10*lineparams.get(1, 0)[0]), new Scalar(0, 0, 0));
+        }
+        */
+    }
+
+    /**
+     * This function will take in a MatOfPoint object and return a Mat containing the line parameters
+     * Creates line based on points that are within 'distance' in x axis of the furthest right point
+     * in 'points'
+     *
+     * @param points
+     * @param distance
+     * @return LineParams
+     */
+    private Mat findLineFromPointsWithinRangeFromFurthestRightPoint(MatOfPoint points, int distance){
+        Mat lineParams = new Mat();
+        Vector<Point> pointsToFit = new Vector<Point>();
+
+        // Select points within distance of furthest right point
+        // Step 1: Find furthest right point and put at 0 location in pointsToFit
+        Point[] contourPoints = points.toArray();
+        for(int i = 0; i < contourPoints.length; i++) {
+            if (pointsToFit.isEmpty())
+                pointsToFit.add(contourPoints[i]);
+            else if (pointsToFit.get(0).x < contourPoints[i].x)
+                pointsToFit.set(0, contourPoints[i]);
+        }
+
+        // Step 2: Get all points within distance of x value of furthest right point
+        double xVal = pointsToFit.get(0).x;
+        for(int i = 0; i < contourPoints.length; i++) {
+            if(contourPoints[i].x >= xVal - distance)
+                pointsToFit.add(contourPoints[i]);
+        }
+
+        // Step 3: Fit line to pointsToFit
+        Mat pointsToFitMat = new Mat(pointsToFit.size(), 2, CvType.CV_32F);
+        for(int i = 0; i < pointsToFit.size(); i++){
+            pointsToFitMat.put(i,0, pointsToFit.get(i).x);
+            pointsToFitMat.put(i,1, pointsToFit.get(i).y);
+        }
+        Log.i("PointsToFit", pointsToFitMat.dump());
+        if(!pointsToFitMat.empty()) {
+            Imgproc.fitLine(pointsToFitMat, lineParams, Imgproc.CV_DIST_L2, 0, 0.01, 0.01);
+            Log.i("FitLine", lineParams.dump());
+        }
+        return lineParams;
+    }
+
+    /**
+     * Test if contour is in the blob search area specified by lower right blob search area specified by BB_Parameters.startingRow,startingColumn
+     // and the lower right pixel location of the entire image
+     * @param contour
+     * @return
+     */
+    public boolean isInBlobSearchArea(MatOfPoint contour){
+        // Check to see if any point in the contour is within the blob search area
+        Point[] contourPoints = contour.toArray();
+        for(int i = 0; i < contourPoints.length; i++){
+            if(contourPoints[i].x > BB_Parameters.startingColumn && contourPoints[i].y > BB_Parameters.startingRow)
+                return true;
+        }
+        return false;
     }
 }

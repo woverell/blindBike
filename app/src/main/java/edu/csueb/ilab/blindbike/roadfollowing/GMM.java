@@ -32,9 +32,11 @@ public class GMM {
     /**
      * Using the density method of the multivariate gaussian class to calculate for each cluster
      * the probability multiplied by its weight and sum them up to return the probability the sample
-     * belongs to this gmm
+     * belongs to this gmm.
      * @param sample
-     * @return probability
+     * @return probability - returns -100 if does not belong to this gmm meaning that at least 1 cluster
+     * is above the minimum probability set in this.minimum_probabilty_to_be_in_cluster.elementAt(k) where
+     * k is cluster number of the gmm.
      */
     double predict(double[] sample){
         double probability = 0.0;

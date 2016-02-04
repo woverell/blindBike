@@ -13,16 +13,56 @@ import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
-import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
 import edu.csueb.ilab.blindbike.blindbike.BB_Parameters;
 
 /**
- * Created by Will on 9/21/2015.
+ *
  */
 public class Filter_Utility {
-    static void classifyImageIntoDataClasses(Vector<GMM> gmms, Mat img){
+    /**
+     * Classify the pixels of the image based on their feature vectors into 0 - no class or
+     * 255 - the class.  The class represented by the gmm.
+     * @param gmm
+     * @param inputImg
+     * @param outputImg
+     */
+    static void classifyImageIntoDataClass(GMM gmm, Mat inputImg, Mat outputImg){
+        // Step 1: Cycle through every feature vector (each feature vector corresponds to a pixel)
+        // and classify it using the gmm into either 0(not of that class) or 255(of that class)
+        double[] sample = new double[BB_Parameters.featureVectorDimension];
+
+        for(int i = 0; i < inputImg.rows(); i++){
+            for(int j = 0; j < inputImg.cols(); j++){
+                sample[2] = inputImg.get(i, j)[0]; // R
+                sample[1] = inputImg.get(i, j)[1]; // G
+                sample[0] = inputImg.get(i, j)[2]; // B
+
+                if((gmm.predict(sample)) >= 0){
+                    // The pixel at this location belongs to this class
+                    outputImg.put(i, j, 255);
+                }else {
+                    // The pixel at this location does not belong to this class
+                    outputImg.put(i,j, 0);
+                }
+
+            }
+
+        }
+    }
+
+    /**
+     * This method will classify the input images based on examining each pixel's feature vector
+     * into one of a set of gmms.  Creates array where each pixel is represented by the label of its
+     * classified data class.  This label can be found in the gmm class.
+     * If BB_Parameters.pseudo_Creation = ture replaces original pixel values with the pseudo color representing
+     * the determined data class for that pixel.
+     * @param gmms
+     * @param img
+     * @return 2d array representing labeled image of classes
+     */
+    static int[][] classifyImageIntoDataClasses(Vector<GMM> gmms, Mat img, Mat roadBinaryImage){
 
             int[][] classArray = null;
             int imgHeight = -1;
@@ -39,20 +79,20 @@ public class Filter_Utility {
                 imgWidth = img.cols();
                 classArray = new int[imgHeight][imgWidth];
 
-            long startTime = System.currentTimeMillis();
             // Step 1: Cycle through every feature vector (each feature vector corresponds to a pixel)
             // and classify it using the GMMs, one GMM per data class (one gmm for sky, one for road, ...)
             Mat nextFeatureVector;
-            double[] sample = new double[BB_Test_Train_Util.featureVectorDimension];
+            double[] sample = new double[BB_Parameters.featureVectorDimension];
             int rowNum = 0;
             int colNum = 0;
 
             nextFeatureVector = img;
             for(int i = 0; i < nextFeatureVector.rows(); i++){
                 for(int j = 0; j < nextFeatureVector.cols(); j++){
-                    sample[0] = nextFeatureVector.get(i, j)[0];
-                    sample[1] = nextFeatureVector.get(i, j)[1];
-                    sample[2] = nextFeatureVector.get(i, j)[2];
+                    // WILLIAM: SWITCHING RGB TO BGR
+                    sample[2] = nextFeatureVector.get(i, j)[0]; // R
+                    sample[1] = nextFeatureVector.get(i, j)[1]; // G
+                    sample[0] = nextFeatureVector.get(i, j)[2]; // B
 
                     // Cycle through GMM list to figure out which class has the highest probability
                     double max = -10;
@@ -69,12 +109,22 @@ public class Filter_Utility {
                     }
 
 
-                    if(class_index == -1 )
+                    //SOme counting AND
+                    //create binary image of road/not road pixels for future processing
+                    if(class_index == -1 ) {
                         count_NO_CLASS += 1;
-                    else
+                        roadBinaryImage.put(i, j, 0);
+                    }
+                    else {
                         count_Classes[class_index] += 1;
-
+                        if (class_index == 1) //MEANS WE ALWAYS need to keep this meaning road
+                            roadBinaryImage.put(i, j, 255);
+                        else
+                            roadBinaryImage.put(i,j,0);
+                    }
                     classArray[rowNum][colNum] = class_index;
+
+
                     colNum++;
                     if(colNum%imgWidth == 0){
                         colNum = 0;
@@ -85,12 +135,13 @@ public class Filter_Utility {
             }
 
         // If pseudo creation parameter is true then create pseudo image
-        if(BB_Parameters.pseudo_Creation)
+        if(BB_Parameters.displaypseudoLabelImage)
             createPseudoImage(classArray, gmms, img);
 
+        return classArray;
     }
 
-    static Vector<GMM> readParametersForMixtureOfGaussiansForAllDataClasses(String gmmsfilename, Context context){
+    static Vector<GMM> readParametersForMixtureOfGaussiansForAllDataClasses(String gmmsfilename, Context context, double standard_Deviation_Factor){
         Vector<GMM> gmms = new Vector();
         // Step 1: Cycle through each class's file representing its GMM (Gaussian Mixture Model)
 
@@ -136,32 +187,37 @@ public class Filter_Utility {
                 s = s.replace("]", "");
                 st = new StringTokenizer(s);
                 Vector weights = new Vector();
+                Vector meansForClusters = new Vector();
+
 
                 for(int w = 0; w < gmm.numCluster; w++){
                     weights.add(Double.parseDouble(st.nextToken())); // reading in weights for each cluster
                 }
                 gmm.weights = weights;
                 // Read in means vector for all clusters
-                double[] means = new double[BB_Test_Train_Util.featureVectorDimension];
+
                 for(int q=0; q < gmm.numCluster; q++)  //cycle each cluster
                 {
+                    double[] means = new double[BB_Parameters.featureVectorDimension];
                     s = br2.readLine();
                     s = s.replace(",", "");
                     s = s.replace("[",  "");
                     s = s.replace("]", "");
                     s = s.replace(";", "");
                     st = new StringTokenizer(s);
-                    for(int w = 0; w < BB_Test_Train_Util.featureVectorDimension; w++){
+                    for(int w = 0; w < BB_Parameters.featureVectorDimension; w++){
                         means[w] = (Double.parseDouble(st.nextToken()));
                     }
+                    meansForClusters.add(means);
                 }
 
 
                 // Read in covariance matrix for each cluster
-                double[][] covMat = new double[BB_Test_Train_Util.featureVectorDimension][BB_Test_Train_Util.featureVectorDimension];
+
                 for(int q=0; q < gmm.numCluster; q++)  //cycle each cluster
                 {
-                    for(int z = 0; z < BB_Test_Train_Util.featureVectorDimension; z++) // for each row in this cluster's covariance matrix
+                    double[][] covMat = new double[BB_Parameters.featureVectorDimension][BB_Parameters.featureVectorDimension];
+                    for(int z = 0; z < BB_Parameters.featureVectorDimension; z++) // for each row in this cluster's covariance matrix
                     {
                         s = br2.readLine();
                         s = s.replace(",", "");
@@ -169,27 +225,29 @@ public class Filter_Utility {
                         s = s.replace("]", "");
                         s = s.replace(";", "");
                         st = new StringTokenizer(s);
-                        for(int w = 0; w < BB_Test_Train_Util.featureVectorDimension; w++){ // Cycling through each row
+                        for(int w = 0; w < BB_Parameters.featureVectorDimension; w++){ // Cycling through each row
                             covMat[z][w] = (Double.parseDouble(st.nextToken()));
                         }
                     }
+
+                    // Now store this PVectorMatrix and corresponding Means vector inside the gmm
+                    gmm.addGaussian((double[]) meansForClusters.get(q), covMat);
                 }
-                // Now store this PVectorMatrix inside the gmm
-                gmm.addGaussian(means, covMat);
+
 
                 // Calculate minimum probability value for each cluster of this gmm to be within +-(2 * the std dev)
                 for(int q=0; q < gmm.numCluster; q++)  //cycle each cluster
                 {
-                    double[][] std = new double[BB_Test_Train_Util.featureVectorDimension][BB_Test_Train_Util.featureVectorDimension];
-                    for(int v = 0; v < BB_Test_Train_Util.featureVectorDimension; v++){
-                        for(int w = 0; w < BB_Test_Train_Util.featureVectorDimension; w++){
-                            std[v][w] = BB_Test_Train_Util.std_dev_range_factor * Math.sqrt(gmm.gaussians.elementAt(q).getCovariances().getData()[v][w]); //TODO: MAKE SURE WORKS
+                    double[][] std = new double[BB_Parameters.featureVectorDimension][BB_Parameters.featureVectorDimension];
+                    for(int v = 0; v < BB_Parameters.featureVectorDimension; v++){
+                        for(int w = 0; w < BB_Parameters.featureVectorDimension; w++){
+                            std[v][w] = standard_Deviation_Factor * Math.sqrt(gmm.gaussians.elementAt(q).getCovariances().getData()[v][w]); //TODO: MAKE SURE WORKS
                         }
                     }
                     RealMatrix stdMat = MatrixUtils.createRealMatrix(std);
                     // Calculate minimum  sample value = mean - std to be considered part of this cluster
-                    double[] identity = new double[BB_Test_Train_Util.featureVectorDimension];
-                    for(int v = 0; v < BB_Test_Train_Util.featureVectorDimension; v++){
+                    double[] identity = new double[BB_Parameters.featureVectorDimension];
+                    for(int v = 0; v < BB_Parameters.featureVectorDimension; v++){
                         identity[v] = 1.0;
                     }
 
@@ -199,13 +257,13 @@ public class Filter_Utility {
                     min = meansMat.subtract(stdVector);
 
                     double temp = gmm.gaussians.elementAt(q).density(gmm.gaussians.elementAt(q).getMeans());
-                    if(BB_Test_Train_Util.VERBOSE)
+                    if(BB_Parameters.VERBOSE)
                         System.out.println(" Prob at mean" + temp  );
 
                     //determine minimum probability value corresponding to this minimum
                     gmm.minimum_probability_to_be_in_cluster.add(gmm.gaussians.elementAt(q).density(min.toArray()));
 
-                    if(BB_Test_Train_Util.VERBOSE)
+                    if(BB_Parameters.VERBOSE)
                         System.out.println(" Prob at 2 std out is " + gmm.minimum_probability_to_be_in_cluster.elementAt(q) );
 
                 }
@@ -251,10 +309,30 @@ public class Filter_Utility {
         for(int i = 0; i < imgWidth; i++){
             for(int j = 0; j < imgHeight; j++){
                 if(classArray[i][j] == -1){
-                    pseudoImage.put(i, j, BB_Test_Train_Util.otherClassPseudocolor);
+                    pseudoImage.put(i, j, BB_Parameters.otherClassPseudocolor);
                 }
                 else
                     pseudoImage.put(i, j, gmms.elementAt(classArray[i][j]).pseudocolor); // Note: each gmm in the gmm vector has associated with it a data class gmm.className
+            }
+        }
+    }
+
+    /**
+     * This function takes in a boolean image(1 channel) of values 0 and nonzero
+     * and an outImage of the same size(rows/cols) and places the corresponding
+     * color (classColor for nonzero, otherColor for zero) into outImage
+     * @param boolImage
+     * @param outImage
+     * @param classColor
+     * @param otherColor
+     */
+    static void displayBooleanImage(Mat boolImage, Mat outImage, double[] classColor, double[] otherColor){
+        for(int i = 0; i < boolImage.rows(); i++){
+            for(int j = 0; j < boolImage.cols(); j++){
+                if(boolImage.get(i,j)[0] != 0)
+                    outImage.put(i,j, classColor);
+                else
+                    outImage.put(i,j, otherColor);
             }
         }
     }

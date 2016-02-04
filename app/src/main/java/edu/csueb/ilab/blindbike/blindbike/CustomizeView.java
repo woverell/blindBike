@@ -80,6 +80,18 @@ public class CustomizeView extends JavaCameraView{
         BB_Parameters.runningResolution_width = bestWidth;
         BB_Parameters.scaleFactor_height = (double)bestHeight / (double)BB_Parameters.trainingResolution_height;
         BB_Parameters.scaleFactor_width = (double)bestWidth / (double)BB_Parameters.trainingResolution_width;
+        BB_Parameters.startingRow  = (BB_Parameters.runningResolution_height / 2) - (int)(BB_Parameters.cutOff_Area_Of_Interest * BB_Parameters.scaleFactor_height);
+        // Calculate Hough Parameter related to running resolution
+        BB_Parameters.houghRhoResolution_RunningResolution_AccumulatorSpace = Math.max(Math.min(BB_Parameters.runningResolution_height, BB_Parameters.runningResolution_width) * (BB_Parameters.houghRhoResolution_PercentRunningResolution_AccumulatorSpace / 100), 1);
+        if(BB_Parameters.startingRow < 0){
+            Log.i("ERROR", "startingRow miscalculated");
+            BB_Parameters.startingRow = 0; // Not really the right thing but what can we do? because the cutoff parameter was wrong to begin with
+        }else if(BB_Parameters.startingRow > BB_Parameters.runningResolution_height){
+            Log.i("ERROR", "startingRow miscalculated");
+            BB_Parameters.startingRow = 0; // Not really the right thing but what can we do? because the cutoff parameter was wrong to begin with
+        }
+        BB_Parameters.startingColumn  = BB_Parameters.runningResolution_width / 2;
+
 
         if(BB_Parameters.scaleFactor_height > 1.0 || BB_Parameters.scaleFactor_width > 1.0){
             Log.i("PARAMETERS", "Parameter scale factor greater than 1.0, meaning we are trying to increase resolution rather than decrease");

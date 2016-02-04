@@ -1,0 +1,89 @@
+Index: openCVLibrary2410/build/generated/source/aidl/debug/org/opencv/engine/OpenCVEngineInterface.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- openCVLibrary2410/build/generated/source/aidl/debug/org/opencv/engine/OpenCVEngineInterface.java	(revision a92eb4cf3587aa9752177c7c6c3746a25e4cc8a1)
++++ openCVLibrary2410/build/generated/source/aidl/debug/org/opencv/engine/OpenCVEngineInterface.java	(revision )
+@@ -1,6 +1,6 @@
+ /*
+  * This file is auto-generated.  DO NOT MODIFY.
+- * Original file: C:\\Users\\Will\\Desktop\\BlindBike\\bb\\openCVLibrary2410\\src\\main\\aidl\\org\\opencv\\engine\\OpenCVEngineInterface.aidl
++ * Original file: /Users/williamoverell/Desktop/BlindBike/bb/openCVLibrary2410/src/main/aidl/org/opencv/engine/OpenCVEngineInterface.aidl
+  */
+ package org.opencv.engine;
+ /**
+Index: app/app.iml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/app.iml	(revision a92eb4cf3587aa9752177c7c6c3746a25e4cc8a1)
++++ app/app.iml	(revision )
+@@ -87,11 +87,11 @@
+     <orderEntry type="jdk" jdkName="Android API 21 Platform" jdkType="Android SDK" />
+     <orderEntry type="sourceFolder" forTests="false" />
+     <orderEntry type="library" exported="" name="appcompat-v7-21.0.3" level="project" />
++    <orderEntry type="library" exported="" name="mapquest-android-sdk-1.0.5" level="project" />
++    <orderEntry type="library" exported="" name="support-annotations-21.0.3" level="project" />
++    <orderEntry type="library" exported="" name="support-v4-21.0.3" level="project" />
+     <orderEntry type="library" exported="" name="commons-io-2.4" level="project" />
+     <orderEntry type="library" exported="" name="osmdroid-android-4.2" level="project" />
+-    <orderEntry type="library" exported="" name="support-v4-21.0.3" level="project" />
+-    <orderEntry type="library" exported="" name="support-annotations-21.0.3" level="project" />
+-    <orderEntry type="library" exported="" name="mapquest-android-sdk-1.0.5" level="project" />
+     <orderEntry type="module" module-name="openCVLibrary2410" exported="" />
+   </component>
+ </module>
+\ No newline at end of file
+Index: openCVLibrary2410/build/generated/source/aidl/release/org/opencv/engine/OpenCVEngineInterface.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- openCVLibrary2410/build/generated/source/aidl/release/org/opencv/engine/OpenCVEngineInterface.java	(revision a92eb4cf3587aa9752177c7c6c3746a25e4cc8a1)
++++ openCVLibrary2410/build/generated/source/aidl/release/org/opencv/engine/OpenCVEngineInterface.java	(revision )
+@@ -1,6 +1,6 @@
+ /*
+  * This file is auto-generated.  DO NOT MODIFY.
+- * Original file: C:\\Users\\Will\\Desktop\\BlindBike\\bb\\openCVLibrary2410\\src\\main\\aidl\\org\\opencv\\engine\\OpenCVEngineInterface.aidl
++ * Original file: /Users/williamoverell/Desktop/BlindBike/bb/openCVLibrary2410/src/main/aidl/org/opencv/engine/OpenCVEngineInterface.aidl
+  */
+ package org.opencv.engine;
+ /**
+Index: app/src/main/java/edu/csueb/ilab/blindbike/roadfollowing/GlobalRF.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/edu/csueb/ilab/blindbike/roadfollowing/GlobalRF.java	(revision a92eb4cf3587aa9752177c7c6c3746a25e4cc8a1)
++++ app/src/main/java/edu/csueb/ilab/blindbike/roadfollowing/GlobalRF.java	(revision )
+@@ -108,6 +108,7 @@
+         // TODO: ADD TRAINING DATA AS PARAMETER
+         int[][] intArray = new int[][]{{2,3,4},{5,6,7},{8,9,10},{9, 9, 7},{8,7,7}}; // points
+         Mat sampleData = new Mat(5,3, CvType.CV_32FC1); // 5 rows; 3 cols
++        // row = sample_number, col = feature_number
+         for(int row=0;row<5;row++){
+             for(int col=0;col<3;col++)
+                 sampleData.put(row, col, intArray[row][col]);
+@@ -115,9 +116,9 @@
+ 
+         int[][]labelArray = new int[][]{{1}, {1}, {0}, {1}, {0}}; // labels
+         Mat labels = new Mat(5,1, CvType.CV_32FC1);  // 5 rows; 1 col
++        // row = sample_number
+         for(int row=0;row<5;row++){
+-            for(int col=0;col<1;col++)
+-                labels.put(row, col, labelArray[row][col]);
++            labels.put(row, 0, labelArray[row][0]);
+         }
+         knn = new CvKNearest(sampleData, labels); // initialize and train knn
+ 
+@@ -129,7 +130,7 @@
+         testSample.put(0, 0, 9);
+         testSample.put(0, 1, 9);
+         testSample.put(0, 2, 6);
+-        knn.find_nearest(testSample, 3, results, neighborResponses, dists);
++        knn.find_nearest(testSample, 1, results, neighborResponses, dists);
+         double resultClass = results.get(0,0)[0];
+         Log.i("NaviActivity", "class: " + resultClass + "\n");
+     }

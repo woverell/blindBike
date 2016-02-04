@@ -26,8 +26,8 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -35,6 +35,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.location.Criteria;
@@ -254,6 +256,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 * TextToSpeech for audio output
 	 */
 	private TextToSpeech tts;
+
+	private Mat dummy_Image;
 
 	/**
 	 * Store all logs of the <code>onLocationChanged()</code> and
@@ -803,6 +807,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	}
 
 	public void onCameraViewStarted(int width, int height) {
+		//do we maybe setup the camera parameters here??? this.mOPenCVCameraView.mCamera is valid
+		this.mOpenCvCameraView.setClosestResolution(BB_Parameters.idealResolutionLow_width, BB_Parameters.idealResolutionLow_height, BB_Parameters.idealResolutionHigh_width, BB_Parameters.idealResolutionHigh_width);
+
 		mGray = new Mat();
 		mRgba = new Mat();
 
@@ -810,8 +817,15 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		localRF = new LocalRF();
 		obstacleAvoidance = new ObstacleAvoidance();
 
-		//do we maybe setup the camera parameters here??? this.mOPenCVCameraView.mCamera is valid
-		this.mOpenCvCameraView.setClosestResolution(BB_Parameters.idealResolutionLow_width, BB_Parameters.idealResolutionLow_height, BB_Parameters.idealResolutionHigh_width, BB_Parameters.idealResolutionHigh_width);
+		if(BB_Parameters.test_mode){
+			this.dummy_Image = new Mat();
+			BitmapFactory.Options o = new BitmapFactory.Options();
+			o.inScaled = false;
+			Bitmap bmp = BitmapFactory.decodeResource(getResources(), BB_Parameters.testImage, o);
+			Utils.bitmapToMat(bmp, this.dummy_Image); // URL: http://stackoverflow.com/questions/17390289/convert-bitmap-to-mat-after-capture-image-using-android-camera
+		}
+
+
 		/*try {
 			this.mOpenCvCameraView.setPreviewFPS(1000, 2000);
 		}catch(Exception e1){
@@ -823,11 +837,17 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	}
 
 	public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+		Log.i("FrameProc", "New Frame Processing");
 		mRgba = inputFrame.rgba();
+
+		if(BB_Parameters.test_mode){
+			this.dummy_Image.copyTo(mRgba);
+		}
+
 
 		int width = mRgba.width();
 		int height = mRgba.height();
-		Log.i("NaviActivity", "width: " + width + "height: " + height + "\n");
+		//Log.i("NaviActivity", "width: " + width + "height: " + height + "\n");
 		// Step 2: Any preprocessing/noise removal???
 		// Step 3: Do we only process every x frames???
 			// We would figure out x is a function of x = f(maximum bike speed, maximum distance between frames)

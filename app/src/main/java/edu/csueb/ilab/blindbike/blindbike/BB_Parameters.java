@@ -6,6 +6,22 @@ package edu.csueb.ilab.blindbike.blindbike;
  */
 public class BB_Parameters {
 
+    // This is the file path to the source code where the .dat files are located
+    public static String filepath_to_code_source = "file:///android_asset/";
+
+    // This is the number of components of the feature vector (RGB currently)
+    public final static int featureVectorDimension = 3;
+
+    // This sets the psuedo-color for the 'other' class
+    public final static double[] otherClassPseudocolor = {0,255,0,255};
+
+    // Verbose mode for Filter_Utility.java
+    public static boolean VERBOSE = false;
+
+    // Standard Deviation range for GMM Classification
+    public static double std_dev_range_factor = 2.0; // for multiple classes (road,sky,white-line)
+    public static double std_dev_range_factor_small = 1.0; // for single class (road/non-road)
+
     // Training data resolution
     public final static int trainingResolution_width = 720;
     public final static int trainingResolution_height = 588;
@@ -23,8 +39,70 @@ public class BB_Parameters {
     public static double scaleFactor_width = 1;
     public static double scaleFactor_height = 1;
 
+    // This is the top row out of a height of this.trainingResolution_height rows you want to start examining in your RoI
+    // This value should be between 0 and this.trainingResolution_height
     public static final int cutOff_Area_Of_Interest = 200;
 
-    public static final boolean pseudo_Creation = false;
+    // Parameter to signify which is the index of the road class in our set of gmms
+    public static final int gmm_road_class_index = 1; // please look at file gmmFileForAllDataClasses.dat in assets for appropriate number
 
+
+    // If test_mode true then we process on testImage rather than camera images
+    public static final boolean test_mode = true;
+
+    // Image to use in test_mode
+    public static int testImage = R.drawable.artificial_road;
+
+    // Parameter for Small Blob Elimination Step (Step 7.1)
+    // Based on birds eye view geometry which we dont have 10 columns filling aprox 280 pixel high image would be 2800
+    // and correcting for perspective we are guessing that might be 2000
+    public static final int minNumberBlobPixels = 2000;
+
+
+    // If true then classifies with multiple class GMM (road, sky, white line)
+    // If false then classifies with one road class GMM
+    public static final boolean classifyByMultipleClasses = true;
+
+    // This is to create for display pseudo color labeled image
+    // Either multiple classes or just road or non-road
+    public static final boolean displaypseudoLabelImage = false;
+
+    public static final boolean displayRoadBinaryImage = false;
+
+    public static final boolean displayRoadDialateErode = false;
+
+    public static final boolean displayAllContours = false;
+
+    public static final boolean displayTopTwoContours = false;
+
+    public static final boolean displayHoughLines = true;
+
+    public static final boolean displayBinaryContourImage = true;
+
+    // Parameter for erosion/dilation value of roadBinaryImage
+    public static final boolean perform_Erosion_Dilation = false;
+    public static final int erosion_Value = 1; // 5x5 window
+    public static final int dilation_value = 1; // 5x5 window
+
+    // Parameter for Hough Lines Detection in GlobalRF
+    public static final double houghRhoResolution_PercentRunningResolution_AccumulatorSpace = 5.0;
+    public static double houghRhoResolution_RunningResolution_AccumulatorSpace;
+    public static final double houghThetaResolution_AccumulatorSpace = Math.PI / 180;
+    // Minimum Number of votes to consider line
+    public static final int houghMinNumVotes = 20;
+    public static final int houghMaxLineGap = 1;
+
+    // Line Selection Algorithm Parameters
+    // Angle Range
+    // Angle of 0 or 180 is vertical line
+    public static final int lineSelectionAngleRangeLow = 50; // decrease this to narrow range (min 1)
+    public static final int lineSelectionAngleRangeHigh = 130; // increase this to narrow range (max 179)
+
+
+    // Parameter for blob search area
+    // startingRow = top row of search area
+    // startingColumn = leftmost column of search area
+    // note: bottom of search rectangle area is bottom right of image
+    public static int startingRow;
+    public static int startingColumn;
 }
