@@ -316,18 +316,18 @@ public class InstructionManager {
 				tld_obj.setCategory(st.getCategory());
 				tld_obj.setLat(st.getCenter().getLatitude());
 				tld_obj.setLng(st.getCenter().getLongitude());
-/*				double elevation;
-				GeoPoint g = new GeoPoint(st.getCenter().getLatitude(),st.getCenter().getLongitude());
+				double elevation;
+/*				GeoPoint g = new GeoPoint(st.getCenter().getLatitude(),st.getCenter().getLongitude());
 				Location loc = new Location("pta");
 				loc.setLatitude(g.getLatitude());
 				loc.setLongitude(g.getLongitude());
 				loc.setAccuracy(333);
 				loc.setBearing(333);
-				elevation=loc.getAltitude();*/
+				elevation=loc.getAltitude();
 				lat = st.getCenter().getLatitude();
 				lng = st.getCenter().getLongitude();
 				//look_for_altitude
-				tld_obj.setAltitude(getLocAlt(st.getCenter().getLatitude(), st.getCenter().getLongitude()));
+				tld_obj.setAltitude(look_for_altitude(st.getCenter().getLatitude(), st.getCenter().getLongitude()));*/
 				tld_obj.setCrossed(false);
 				tld_array_list.add(tld_obj);
 			}
@@ -337,8 +337,8 @@ public class InstructionManager {
 	private double look_for_altitude(double lat,double lng)
 	{
 		double result=0;
-	//	RetrieveData rd = new RetrieveData();
-	//	rd.execute("lets","try");
+//		RetrieveData rd = new RetrieveData();
+//		rd.execute("lets","try");
 		return altitude_final;
 	}
 
@@ -349,7 +349,7 @@ public class InstructionManager {
 		{
 			StreetFurniture st = this.streetFurniture.get(i);
 			Log.v("ChrisResults", st.getCategory());
-		//	init_traffic_light_list();
+			init_traffic_light_list();
 			if(st.getCategory().equalsIgnoreCase("traffic light"))
 			{
 				flg=1;
@@ -1155,6 +1155,7 @@ public class InstructionManager {
 						String value= json.substring(start,end);
 						result = (double)(Double.parseDouble(value));
 						altitude_final=result;
+						Log.i("TAG: Elevation",Double.toString(lat) +"," + Double.toString(lng) + " =" + Double.toString(altitude_final));
 					}
 					inputStream.close();
 				}

@@ -683,6 +683,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private void createInstructions(JSONObject guidance) {
 		// Load the landmarks as a JSONObject from res/raw/landmarks.json
+		//REPLACE WITH READING FROM MAPQUEST DATA
 		InputStream is = getResources().openRawResource(R.raw.landmarks);
 		JSONObject landmarks = null;
 		try {
@@ -697,6 +698,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		// Load the street furniture as a JSONArray from
 		// res/raw/streetfurniture.json
+		//REPLACE WITH READING FROM MAPQUEST DATA
 		is = getResources().openRawResource(R.raw.streetfurniture);
 		JSONArray streetFurniture = null;
 		try {
@@ -710,6 +712,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		}
 
 		// Load the intersections as a JSONArray from res/raw/intersections.json
+		//REPACE WITH READING FROM MAPQUEST DATA
 		is = getResources().openRawResource(R.raw.intersections);
 		JSONArray intersections = null;
 		try {
@@ -1128,6 +1131,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	@Override
 	public void onLocationChanged(Location location) {
 		debugger += "onLocationChanged() called...\n";
+
 
 		double lat = location.getLatitude();
 		double lng = location.getLongitude();
