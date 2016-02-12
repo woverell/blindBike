@@ -112,6 +112,7 @@ public class InstructionManager {
 	private double lat,lng,altitude_final=0;
 	public double tllat,ltlong;
 	ArrayList<Traffic_light_Data> tld_array_list;
+	public int sig_i=0;
 	/**
 	 * Constructor of the InstructionManager class
 	 * 
@@ -345,9 +346,9 @@ public class InstructionManager {
 	public int findSignal() {
 
 		int flg=0;
-		for(int i=0;i<this.streetFurniture.size();i++)
+		for(sig_i=0;sig_i<this.streetFurniture.size();sig_i++)
 		{
-			StreetFurniture st = this.streetFurniture.get(i);
+			StreetFurniture st = this.streetFurniture.get(sig_i);
 			Log.v("ChrisResults", st.getCategory());
 			init_traffic_light_list();
 			if(st.getCategory().equalsIgnoreCase("traffic light"))

@@ -295,6 +295,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private Sensor mPressureSensor;
 	private float mLightQuantity;
 	private float altitude = 0;
+	private int sig_flag =-1;
 
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
 		@Override
@@ -1190,8 +1191,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			//	String t= String.valueOf(distanceDP2);//+ String.valueOf(results[0]); //String.valueOf(results[0])
 			//	addstatus(t); //checking the distance in mts
 			// Log the distances
-
-			int f = im.findSignal();
+			int f=1;
+			if(sig_flag == -1) {
+				f = im.findSignal();
+				sig_flag =1;
+			}
 			double dptllat = 0, dptllong = 0;
 
 			GeoPoint nexttl = new GeoPoint((int) (im.tllat * 1e6), (int) (im.ltlong * 1e6));
@@ -1209,6 +1213,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 				String x_dis = String.valueOf(dis);
 				x_dis = x_dis.substring(2, 6);
+				// Was having an error of "Invalid Int exception", Thus removing any spaces in the x_dis string
+				x_dis = x_dis.replaceAll("\\D+","");
 				int new_dis = Integer.parseInt(x_dis);
 				//	int new_dis=Integer.parseInt(String.valueOf(dis).substring(3));
 				String t = String.valueOf(new_dis);
