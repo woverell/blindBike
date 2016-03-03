@@ -12,6 +12,9 @@ public class Traffic_light_Data {
     private String category;
     private double altitude;
     private Boolean crossed;
+    //If manTypeand linkId is -1 then we havn't found anything or no value was added
+    private int manType=-1;
+    private int linkId=-1;
 
     public Traffic_light_Data()
     {
@@ -20,15 +23,15 @@ public class Traffic_light_Data {
         crossed=false;
     }
 
-    public GeoPoint getCenter()
+    /*public GeoPoint getCenter()
     {
         return center;
-    }
+    }*/
 
-    public void setCenter(GeoPoint center)
+  /*  public void setCenter(GeoPoint center)
     {
         this.center = center;
-    }
+    }*/
 
     public String getCategory()
     {
@@ -77,5 +80,25 @@ public class Traffic_light_Data {
     public double getLng()
     {
         return lng;
+    }
+
+    public void setManType(int manType)
+    {
+        this.manType = manType;
+    }
+
+    public int getManType()
+    {
+        return manType;
+    }
+
+    public void setLinkId(int linkId)
+    {
+        this.linkId = linkId;
+    }
+
+    public int getLinkId()
+    {
+        return linkId;
     }
 }

@@ -313,7 +313,7 @@ public class InstructionManager {
 			if(st.getCategory().equalsIgnoreCase("traffic light"))
 			{
 				tld_obj=new Traffic_light_Data();
-				tld_obj.setCenter(st.getCenter());
+			//	tld_obj.setCenter(st.getCenter());
 				tld_obj.setCategory(st.getCategory());
 				tld_obj.setLat(st.getCenter().getLatitude());
 				tld_obj.setLng(st.getCenter().getLongitude());
@@ -350,7 +350,7 @@ public class InstructionManager {
 		{
 			StreetFurniture st = this.streetFurniture.get(sig_i);
 			Log.v("ChrisResults", st.getCategory());
-			init_traffic_light_list();
+		//	init_traffic_light_list();
 			if(st.getCategory().equalsIgnoreCase("traffic light"))
 			{
 				flg=1;

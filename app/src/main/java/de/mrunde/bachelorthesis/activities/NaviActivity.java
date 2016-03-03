@@ -96,6 +96,7 @@ import de.mrunde.bachelorthesis.instructions.InstructionManager;
 import de.mrunde.bachelorthesis.instructions.LandmarkInstruction;
 import edu.csueb.ilab.blindbike.intersection.XCrossing;
 import edu.csueb.ilab.blindbike.lightdetection.LightDetector;
+import edu.csueb.ilab.blindbike.lightdetection.Traffic_light_Data;
 import edu.csueb.ilab.blindbike.obstacleavoidance.ObstacleAvoidance;
 import edu.csueb.ilab.blindbike.roadfollowing.GlobalRF;
 import edu.csueb.ilab.blindbike.roadfollowing.LocalRF;
@@ -285,8 +286,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private String debugger = "";
 
+	//Edit Text that displayes the distance for debug purposes
 	private EditText mydis;
-
+	//Distance calculated in CM
+	int dis = 0;
 	private double dptl;
 
 	// Light sensor variables
@@ -296,6 +299,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private float mLightQuantity;
 	private float altitude = 0;
 	private int sig_flag =-1;
+
+
+	//Array List to hold tld_obj object which hold lat and lng for next intersection
+	ArrayList<Traffic_light_Data> tld_array_list;
 
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
 		@Override
@@ -685,6 +692,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private void createInstructions(JSONObject guidance) {
 		// Load the landmarks as a JSONObject from res/raw/landmarks.json
 		//REPLACE WITH READING FROM MAPQUEST DATA
+
+		//getIntersectionPoints() will break the guidance object down and get
+		//the lat and lng values for each Intersection [PERFECT]
+		getIntersectionPoints(guidance);
 		InputStream is = getResources().openRawResource(R.raw.landmarks);
 		JSONObject landmarks = null;
 		try {
@@ -698,7 +709,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		}
 
 		// Load the street furniture as a JSONArray from
-		// res/raw/streetfurniture.json
+		// res/ra  w/streetfurniture.json
 		//REPLACE WITH READING FROM MAPQUEST DATA
 		is = getResources().openRawResource(R.raw.streetfurniture);
 		JSONArray streetFurniture = null;
@@ -743,6 +754,84 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		}
 	}
 
+	/*
+	* We are now going to extract all shape points that have an intersection
+	* */
+
+	public void getIntersectionPoints(JSONObject guidance) {
+		tld_array_list=new ArrayList<Traffic_light_Data>();
+		Traffic_light_Data tld_obj;
+
+		int[] maneuvers;
+		int[] linkIndexes;
+		GeoPoint[] decisionPoints;
+		double[] distances;
+		int[] shapePointIndexes;
+
+		// Extract the guidance information out of the raw JSON file
+		try {
+			JSONObject import_guidance = guidance.getJSONObject("guidance");
+
+			// --- Get the maneuver types and link indexes ---
+			// First store them in a temporal List
+			List<Integer> tempManeuverList = new ArrayList<Integer>();
+			List<Integer> tempLinkList = new ArrayList<Integer>();
+			JSONArray guidanceNodeCollection = import_guidance.getJSONArray("GuidanceNodeCollection");
+			for (int i = 0; i < guidanceNodeCollection.length(); i++) {
+				if ((guidanceNodeCollection.getJSONObject(i)).has("maneuverType")) {
+					tempManeuverList.add(guidanceNodeCollection.getJSONObject(i).getInt("maneuverType"));
+					tempLinkList.add(guidanceNodeCollection.getJSONObject(i).getJSONArray("linkIds").getInt(0));
+				}
+			}
+			// Then store them in an array
+			maneuvers = new int[tempManeuverList.size()];
+			linkIndexes = new int[tempLinkList.size()];
+			for (int i = 0; i < maneuvers.length; i++) {
+				maneuvers[i] = tempManeuverList.get(i);
+				linkIndexes[i] = tempLinkList.get(i);
+				tld_obj =  new Traffic_light_Data();
+				tld_obj.setAltitude(0.0);
+				tld_obj.setLat(0.0);
+				tld_obj.setLng(0.0);
+				tld_obj.setCategory("intersection");
+				tld_obj.setCrossed(false);
+				tld_obj.setManType(maneuvers[i]);
+				tld_obj.setLinkId(linkIndexes[i]);
+				tld_array_list.add(tld_obj);
+			}
+
+			// --- Get the distances and shape point indexes --- GuidanceLinkCollection
+			JSONArray guidanceLinkCollection = import_guidance.getJSONArray("GuidanceLinkCollection");
+			distances = new double[maneuvers.length];
+			shapePointIndexes = new int[maneuvers.length];
+			for (int i = 0; i < maneuvers.length ; i++) {
+				if (guidanceLinkCollection.getJSONObject(tld_array_list.get(i).getLinkId())!=null) {
+					//distances[i] = guidanceLinkCollection.getJSONObject("shapeIndex").getDouble("length");
+					shapePointIndexes[i] = guidanceLinkCollection.getJSONObject(tld_array_list.get(i).getLinkId()).getInt("shapeIndex");
+
+				}
+			}
+			int index=0;
+			// --- Get the decision points ---
+			JSONArray shapePoints = import_guidance.getJSONArray("shapePoints");
+		//	decisionPoints = new GeoPoint[shapePoints.length() / 2];
+			for(int i=0;i<shapePointIndexes.length;i++)
+			{
+				index = (shapePointIndexes[i] * 2);
+				tld_array_list.get(i).setLat(shapePoints.getDouble(index));
+				index++;
+				tld_array_list.get(i).setLng(shapePoints.getDouble(index));
+			}
+
+
+
+
+		} catch (JSONException e) {
+
+		}
+	}
+
+
 	/**
 	 * Draw the route with the given shapePoints from the guidance information
 	 * 
@@ -755,6 +844,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		paint.setColor(Color.BLUE);
 		paint.setStyle(Paint.Style.STROKE);
 		paint.setStrokeWidth(5);
+
+		//Log all Intersections
 
 		// Initialize the route overlay
 		List<GeoPoint> shapePoints = new ArrayList<GeoPoint>(
@@ -899,32 +990,41 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		int lr=360;		//center row of the image
 	//	double r_min=10.00,r_max=70.00,d=1524,b=20;
 	//	double r_min=180.00,r_max=240.00,d=2000,b=110;	//Dim of the note on the wall
-		double r_min=480.00,r_max=700.00,d=3000,b=110;	//Dim of the Traffic Light b=110
+		double r_min=480.00,r_max=700.00,d=dis,b=110;	//Dim of the Traffic Light b=110
+		if(d==0)
+			d=3000;
 		//values: for d = 100 steps for 30 mts; 67 steps for 20 mts; 33 steps for 10 mts
-		Tmin=(float)Math.toDegrees(Math.atan((r_min-b)/d));
-		sc_min=f*(Math.tan(Tmin));
-		Log.i("CHRIS Vals: ",String.valueOf(Math.tan(Tmin)));
-		min_row_bound=sc_min+lr;
+		if(d<=3000 && d>=900) {
+			Tmin = (float) Math.toDegrees(Math.atan((r_min - b) / d));
+			sc_min = f * (Math.tan(Tmin));
+			Log.i("CHRIS Vals: ", String.valueOf(Math.tan(Tmin)));
+			min_row_bound = sc_min + lr;
 
-		Tmax=(float)Math.toDegrees(Math.atan(((r_max-b)/d)));
-		sc_max=f*Math.tan(Tmax);
-		Log.i("CHRIS Vals:",String.valueOf(Math.tan(Tmax)));
-		max_row_bound=sc_max+lr;
-		//invert values to get the max and min above 360
-		min_row_bound = 720 - min_row_bound;
-		max_row_bound = 720 - max_row_bound;
-		//Error correction
+			Tmax = (float) Math.toDegrees(Math.atan(((r_max - b) / d)));
+			sc_max = f * Math.tan(Tmax);
+			Log.i("CHRIS Vals:", String.valueOf(Math.tan(Tmax)));
+			max_row_bound = sc_max + lr;
+			//invert values to get the max and min above 360
+			min_row_bound = 720 - min_row_bound;
+			max_row_bound = 720 - max_row_bound;
+			//Error correction
 
 
-		//-100 for lower light now trying -200
-		min_row_bound_low = min_row_bound -100;
-		max_row_bound_low = max_row_bound -100;
+			//-100 for lower light now trying -200
+			min_row_bound_low = min_row_bound - 100;
+			max_row_bound_low = max_row_bound - 100;
 
-		min_row_bound = min_row_bound -200;
-		max_row_bound = max_row_bound -200;
+			min_row_bound = min_row_bound - 200;
+			max_row_bound = max_row_bound - 200;
 
-		///for 2500 as it has less rows in betwen &5000
-		max_row_bound = max_row_bound + 40;
+			///for 2500 as it has less rows in betwen &5000
+			max_row_bound = max_row_bound + 40;
+			mIsColorSelected = true;
+		}
+		else
+		{
+			mIsColorSelected = false;
+		}
 		return 0;
 	}
 	public void onCameraViewStopped() {
@@ -1048,10 +1148,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		Mat cropped_rect=mRgbabright.submat(row_start,row_end,100,700);//row_start,row_end,col_start,col_end
 		//trying for lower signal
-		Mat cropped_rect_low=mRgbabright.submat(row_start_low,row_end_low,100,700);//row_start,row_end,col_start,col_end
+		//Mat cropped_rect_low=mRgbabright.submat(row_start_low,row_end_low,100,700);//row_start,row_end,col_start,col_end
 
 		Imgproc.cvtColor(cropped_rect, touchedRegionHsv, Imgproc.COLOR_BGR2HSV_FULL); //COLOR_RGB2HSV_FULL
-		touchedRegionHsv.copyTo(cropped_rect_low);
+		//touchedRegionHsv.copyTo(cropped_rect_low);
 		// Calculate average color of touched region
 		mBlobColorHsv = Core.sumElems(touchedRegionHsv);
 		//touchedRect.width*touchedRect.height
@@ -1068,7 +1168,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		Imgproc.resize(mDetector.getSpectrum(), mSpectrum, SPECTRUM_SIZE);
 
-		mIsColorSelected = true;
+	//	mIsColorSelected = true;
 
 		//touchedRegionRgba.release();
 		touchedRegionHsv.release();
@@ -1129,6 +1229,22 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		}
 	}
 
+	public int calculateDistance(double userLat, double userLng, double venueLat, double venueLng)
+	{
+		//Haversian Formula
+		int r = 6371;
+		double latDistance = Math.toRadians(userLat - venueLat);
+		double lngDistance = Math.toRadians(userLng - venueLng);
+
+		double a = Math.sin(latDistance/2) * Math.sin(latDistance/2) + Math.cos(Math.toRadians(userLat)) * Math.cos(Math.toRadians(venueLat)) * Math.sin(lngDistance/2) * Math.sin(lngDistance/2);
+		double c = 2 * Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+		String x_dis = String.valueOf(c);
+		x_dis = x_dis.substring(0, 6);
+		c = Double.valueOf(x_dis);
+		int mts =(int)(r * c);
+		mts = mts / 10;
+		return mts;
+	}
 	@Override
 	public void onLocationChanged(Location location) {
 		debugger += "onLocationChanged() called...\n";
@@ -1198,16 +1314,20 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			}
 			double dptllat = 0, dptllong = 0;
 
+		//	GeoPoint nexttl = new GeoPoint((int) (im.tllat * 1e6), (int) (im.ltlong * 1e6));
+
+		//	GeoPoint l = new GeoPoint((int) (lat * 1e6), (int) (lng * 1e6));
+
 			GeoPoint nexttl = new GeoPoint((int) (im.tllat * 1e6), (int) (im.ltlong * 1e6));
 
-			GeoPoint l = new GeoPoint((int) (lat * 1e6), (int) (lng * 1e6));
-
+			GeoPoint l = new GeoPoint((int) ((37.654012) * 1e6), (int) ((-122.053441) * 1e6));
 			if (f == 1) {
 			//	Toast.makeText(getApplicationContext(), "Found signal at ! " + nexttl.getLatitude() + "long: " + nexttl.getLongitude(), Toast.LENGTH_SHORT).show();
 				//	Location.distanceBetween(dptllat, dptllong, lat, lng, tldis);
 
-				int r = 6371;
-				double x = (nexttl.getLongitude() - l.getLongitude()) * Math.cos((l.getLatitude() + nexttl.getLatitude()) / 2);
+				//Old method with alot of error
+
+/*				double x = (nexttl.getLongitude() - l.getLongitude()) * Math.cos((l.getLatitude() + nexttl.getLatitude()) / 2);
 				double y = (nexttl.getLatitude() - l.getLatitude());
 				double dis = Math.sqrt(x * x + y * y) * r;
 
@@ -1217,7 +1337,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				x_dis = x_dis.replaceAll("\\D+","");
 				int new_dis = Integer.parseInt(x_dis);
 				//	int new_dis=Integer.parseInt(String.valueOf(dis).substring(3));
-				String t = String.valueOf(new_dis);
+				String t = String.valueOf(new_dis);*/
+
+				//Haversine Formula
+				//37.654012, -122.053441
+				dis = calculateDistance(lat,lng,im.tllat,im.ltlong);
+				String t = String.valueOf(dis);
 				addstatus(t);
 			}
 

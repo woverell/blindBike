@@ -63,6 +63,12 @@ public class LightDetector {
         double minH = (hsvColor.val[0] >= mColorRadius.val[0]) ? hsvColor.val[0]-mColorRadius.val[0] : 0;
         double maxH = (hsvColor.val[0]+mColorRadius.val[0] <= 255) ? hsvColor.val[0]+mColorRadius.val[0] : 255;
 
+        dataclasses classArray[] = new dataclasses[4];
+
+        classArray[0] = new dataclasses(0, "other", 0,0,0);
+        classArray[1] =new dataclasses(1, "red_light", 255,0,0);
+        classArray[2] = new dataclasses(2, "green_light ", 0,255,0);
+        classArray[2] = new dataclasses(3, "yello_light", 255,255,0);
         //Red Perfect values 170 249 234 - 175 255 255
         //Green Perfect Values 60-15,100,100  - 60+15,255,255
         //Amber Perfect Values
@@ -191,6 +197,8 @@ public class LightDetector {
         Boolean save;
 
         MatOfPoint2f approxCurve=new MatOfPoint2f();
+
+        //Finding the blob with the max area
         for(int i=0;i<contours.size();i++)
         {
             MatOfPoint2f countour2f = new MatOfPoint2f(contours.get(i).toArray());
@@ -200,17 +208,43 @@ public class LightDetector {
             // Convert back to Contour
             MatOfPoint points=new MatOfPoint(approxCurve.toArray());
 
+            Log.i("CHRIS: Points Length",String.valueOf(points.toArray().length));
+            //see if we can detect circular blobs
+            //perfect sol stackoverflow.com/questions/20176768/opencv4android-detect-shape-and-color-hsv
+            if( points.toArray().length == 5)
+            {
+                Log.i("CHRIS: Points Shape","Pentagon");
+
+            }
+            else if(points.toArray().length > 5)
+            {
+               Log.i("CHRIS: Points Shape","Circle");
+
+            }
+            else if(points.toArray().length == 4)
+            {
+                Log.i("CHRIS: Points Shape","Square");
+
+            }
+            else  if(points.toArray().length == 4)
+            {
+                Log.i("CHRIS: Points Shape","Triangle");
+
+            }
+
+
             //Get Bounding rect of contour
             Rect rect=Imgproc.boundingRect(points);
 
             //draw enclosing rectangle
             Mat ROI = rgbaImage.submat(rect.y, rect.y + rect.height, rect.x, rect.x + rect.width);
 
-     //       save= Highgui.imwrite(filename,ROI);
-     //       if (save == true)
-     //           Log.i("Save Status", "SUCCESS writing image to external storage");
-     //       else
-      //          Log.i("Save Status", "Fail writing image to external storage");
+            // Save the blob on SD card to see
+            save= Highgui.imwrite(filename,ROI);
+            if (save == true)
+                Log.i("Save Status", "SUCCESS writing image to external storage");
+            else
+                Log.i("Save Status", "Fail writing image to external storage");
 
             Core.rectangle(rgbaImage, new Point(rect.x,rect.y), new Point(rect.x+rect.width,rect.y+rect.height),new Scalar(255,225,0,0),3);
         }
@@ -221,4 +255,27 @@ public class LightDetector {
     public List<MatOfPoint> getContours() {
         return mContours;
     }
+
+
+    class dataclasses{
+        int label;
+
+        String className;
+
+        int[] pseudoColor = new int[3];
+        int[] pscolor = new int[3];
+
+
+        dataclasses(int l , String n, int r, int g, int b)
+        {
+            this. label =l;
+            this.className =n;
+            this.pseudoColor[0] = r;
+            this.pseudoColor[1] = g;
+            this.pseudoColor[2] = b;
+
+
+        }
+    }
+
 }
