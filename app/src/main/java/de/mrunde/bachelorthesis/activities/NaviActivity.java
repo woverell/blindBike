@@ -62,6 +62,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import android.hardware.Camera.Size;
+
+import de.mrunde.bachelorthesis.instructions.ShapePointManager;
 import edu.csueb.ilab.blindbike.blindbike.BB_Parameters;
 
 import com.mapquest.android.maps.DefaultItemizedOverlay;
@@ -128,6 +130,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private TextView tv_instruction;
 
 	/**
+	 * text view to show the desired bearing
+	 */
+	private TextView bearingTextView;
+
+	/**
 	 * Instruction view (image)
 	 */
 	private ImageView iv_instruction;
@@ -190,6 +197,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private LocationManager lm;
 
 	/**
+	 * Shape point manager to store and manage shape points
+	 */
+	private ShapePointManager spm;
+
+	/**
 	 * Location provider of the LocationManager
 	 */
 	private String provider;
@@ -219,6 +231,28 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 * Maximum distance to a decision point when it is supposed to be reached
 	 */
 	private final int MAX_DISTANCE_TO_DECISION_POINT = 32;
+
+	/**
+	 * Maximum distance to a shape point when it is considered as reached
+	 */
+	private final int SHAPE_POINT_DISTANCE_THRESHOLD = 15;
+
+	/**
+	 * The current desired bearing based on shape points of the route
+	 * In compass degrees 0 to 360, 0 and 360 being north, 90 east
+	 * 180 south, 270 west
+	 */
+	private double desiredBearing = -1;
+
+	private double last_distance = 0;
+
+	private boolean currentSPNotFound = true;
+
+	private boolean candidateSPNotFound = true;
+
+	private double candidateCurrentSPLat;
+
+	private double candidateCurrentSPLng;
 
 	private boolean beenWithinNodeWindow = false;
 
@@ -368,6 +402,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		this.tv_instruction = (TextView) findViewById(R.id.tv_instruction);
 		this.iv_instruction = (ImageView) findViewById(R.id.iv_instruction);
         this.reroute_button = (Button) findViewById(R.id.reroute_button);
+		this.bearingTextView = (TextView) findViewById(R.id.bearingTextView);
         reroute_button.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
@@ -672,6 +707,15 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			// Finish the activity to return to MainActivity
 			finish();
 		}
+
+		// Create shape point manager
+		spm = new ShapePointManager(guidance);
+		if(!spm.isImportSuccessful()){
+			Toast.makeText(this,
+					getResources().getString(R.string.jsonImportNotSuccessful),
+					Toast.LENGTH_SHORT).show();
+			finish();
+		}
 	}
 
 	/**
@@ -917,6 +961,103 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		// Check if the instruction manager has been initialized already
 		if (im != null) {
+
+			// If the candidate shape point hasn't been found yet
+			if (this.candidateSPNotFound) {
+				// Get the coordinates of the current shape point
+				double currentSPLat = im.getCurrentSP().getLatitude();
+				double currentSPLng = im.getCurrentSP().getLongitude();
+
+				// Get the coordinates of the next shape point
+				double nextSPLat = im.getNextSP().getLatitude();
+				double nextSPLng = im.getNextSP().getLongitude();
+
+				float[] distanceResultsA = new float[1], distanceResultsB = new float[1];
+
+				Location.distanceBetween(lat, lng, currentSPLat, currentSPLng, distanceResultsA);
+				Location.distanceBetween(lat, lng, nextSPLat, nextSPLng, distanceResultsB);
+				float temp_distance_diff = distanceResultsB[0] - distanceResultsA[0];
+
+				// loop through until at next closest shape point
+				while (temp_distance_diff <= 0) {
+					// go ahead to the next shape point
+					im.goToNextSP();
+
+					// update the current and next shape points
+					currentSPLat = nextSPLat;
+					currentSPLng = nextSPLng;
+					nextSPLat = im.getNextSP().getLatitude();
+					nextSPLng = im.getNextSP().getLongitude();
+
+					// calc the distance from user to current and next sp
+					Location.distanceBetween(lat, lng, currentSPLat, currentSPLng, distanceResultsA);
+					Location.distanceBetween(lat, lng, nextSPLat, nextSPLng, distanceResultsB);
+
+					// store the distance difference
+					temp_distance_diff = distanceResultsB[0] - distanceResultsA[0];
+				}
+
+				this.candidateCurrentSPLat = currentSPLat;
+				this.candidateCurrentSPLng = currentSPLng;
+				this.candidateSPNotFound = false;
+			}
+
+			// If the current shape point hasn't been found yet
+			if(this.currentSPNotFound){
+				float[] distanceResults = new float[1];
+				Location.distanceBetween(lat, lng, this.candidateCurrentSPLat, this.candidateCurrentSPLng, distanceResults);
+
+
+				// If this is not our first time testing this candidate
+				if (this.last_distance >= 0) {
+					// if our current distance to the candidate is greater than it was last location update
+					if (distanceResults[0] > this.last_distance) {
+						// then this candidate is our current shape point, so we have found the current SP
+						this.currentSPNotFound = false;
+					} else {
+						// otherwise the previous candidate was our current shape point and we found the current SP
+						im.goToPreviousSP();
+						this.currentSPNotFound = false;
+					}
+				}
+
+				this.last_distance = distanceResults[0];
+
+			} else { // Otherwise we know the current shape point
+				double currentSPLat, currentSPLng, nextSPLat, nextSPLng;
+
+				// Calculate the distance to the next shape point
+				float[] distanceResults = new float[1];
+				Location.distanceBetween(lat, lng, im.getNextSP().getLatitude(), im.getNextSP().getLongitude(), distanceResults);
+
+				// Shift to next shape point if within threshold of current shape point
+				// or if next shape point is closer than the current shape point (this
+				// should never happen unless we have gotten past the current shape point)
+
+				if(im.hasShapePointsLeft()){
+				if (distanceResults[0] < SHAPE_POINT_DISTANCE_THRESHOLD) {
+
+					im.goToNextSP(); // shift to the next shape point
+
+						// update the lat and long
+						currentSPLat = im.getCurrentSP().getLatitude();
+						currentSPLng = im.getCurrentSP().getLongitude();
+						nextSPLat = im.getNextSP().getLatitude();
+						nextSPLng = im.getNextSP().getLongitude();
+
+						// bearing calculation
+						double X = Math.cos(nextSPLat) * Math.sin(nextSPLng - currentSPLng);
+						double Y = (Math.cos(currentSPLat) * Math.sin(nextSPLat)) - (Math.sin(currentSPLat) * Math.cos(nextSPLat) * Math.cos(nextSPLng - currentSPLng));
+
+						this.desiredBearing = (Math.toDegrees(Math.atan2(X, Y)) + 360) % 360;
+						this.bearingTextView.setText(Double.toString(this.desiredBearing));
+				}
+			}else{
+				// if no shape points left set bearing to -1 to signify no bearing available
+				this.desiredBearing = -1;
+			}
+		}
+
 			// Get the coordinates of the next decision point
 			double dp1Lat = im.getCurrentInstruction().getDecisionPoint()
 					.getLatitude();
@@ -925,6 +1066,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 			double dp2Lat = 0;
 			double dp2Lng = 0;
+
 			if(im.isOnLastInstruction()){
 				// WILLIAM: I don't know right now
 				dp2Lat = dp1Lat;

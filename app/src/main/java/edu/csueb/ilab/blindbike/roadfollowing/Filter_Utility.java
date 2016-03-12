@@ -141,6 +141,126 @@ public class Filter_Utility {
         return classArray;
     }
 
+    /**
+     * Classify the pixels of the image based on their feature vectors into 0 - no class or
+     * 255 - the class.  The class represented by the gmm.
+     * @param fixedRangeModel
+     * @param inputImg
+     * @param outputImg
+     */
+    static void classifyImageIntoDataClass(ClassedMultipleFixedRangeModel fixedRangeModel, Mat inputImg, Mat outputImg){ }
+
+    /**
+     * This method will classify the input images based on examining each pixel's feature vector
+     * into one of a set of gmms.  Creates array where each pixel is represented by the label of its
+     * classified data class.  This label can be found in the gmm class.
+     * If BB_Parameters.pseudo_Creation = ture replaces original pixel values with the pseudo color representing
+     * the determined data class for that pixel.
+     * @param fixedRangeModels
+     * @param img
+     * @return 2d array representing labeled image of classes
+     */
+    static int[][] classifyImageIntoDataClasses(Vector<ClassedMultipleFixedRangeModel> fixedRangeModels, Mat img, Mat roadBinaryImage, int ignore){
+
+        int[][] classArray = null;
+        int imgHeight = -1;
+        int imgWidth = -1;
+
+        int count_NO_CLASS = 0;
+        int count_Classes[] = new int[fixedRangeModels.size()];
+
+        for(int c =0; c< fixedRangeModels.size(); c++)
+            count_Classes[c] = 0;
+
+
+        imgHeight = img.rows();
+        imgWidth = img.cols();
+        classArray = new int[imgHeight][imgWidth];
+
+        // Step 1: Cycle through every feature vector (each feature vector corresponds to a pixel)
+        // and classify it using the fixedRangeModels, one fixedRangeModel per data class (one gmm for sky, one for road, ...)
+        Mat nextFeatureVector;
+        double[] sample = new double[BB_Parameters.featureVectorDimension];
+        int rowNum = 0;
+        int colNum = 0;
+
+
+        nextFeatureVector = img;
+        for(int i = 0; i < nextFeatureVector.rows(); i++){
+            for(int j = 0; j < nextFeatureVector.cols(); j++){
+                float center[] = new float[3];
+                float best_center[] = {-1.0f, -1.0f, -1.0f};
+
+                // WILLIAM: SWITCHING RGB TO BGR, this is accurate I have tested
+                sample[2] = nextFeatureVector.get(i, j)[0]; // R
+                sample[1] = nextFeatureVector.get(i, j)[1]; // G
+                sample[0] = nextFeatureVector.get(i, j)[2]; // B
+
+                //Log.i("RGB", Double.toString(sample[2]) + Double.toString(sample[1]) + Double.toString(sample[0]));
+
+                // Cycle through fixedRangeModels list to figure out which class has the highest probability
+                //  This is simply measured by its distance the center of the "best" range that belongs to
+                //  each data class.
+                int class_index = -1;
+
+                for(int g = 0; g < fixedRangeModels.size(); g++){
+                    //see if sample falls in one of the fixed ranges of current model g
+                    // this method returns the center of the best fit range (closest to center) OR a vector 0f -1,-1,-1 if does
+                    // not fall into any range of this model
+                    center = fixedRangeModels.elementAt(g).is_In_Ranges((int)sample[2],(int)sample[1],(int)sample[0]);
+                    if (center[0] == -1) //sample does not belong to this model
+                        continue;
+                    else {
+                        //make sure that this is the best class so far
+                        // This means it is class g at this point
+                        if(best_center[0] < 0){
+                            class_index = g;
+                            best_center = center;
+                        }
+                        else if(ClassedMultipleFixedRangeModel.betterCenter(sample[2], sample[1], sample[0], center, best_center)) {
+                            class_index = g;
+                            best_center = center;
+                        }
+                    }
+
+                }
+
+
+                //SOme counting AND
+                //create binary image of road/not road pixels for future processing
+                if(class_index == -1 ) {
+                    count_NO_CLASS += 1;
+                    roadBinaryImage.put(i, j, 0);
+                }
+                else {
+                    count_Classes[class_index] += 1;
+                    if (class_index == 1) //MEANS WE ALWAYS need to keep this meaning road
+                        roadBinaryImage.put(i, j, 255);
+                    else
+                        roadBinaryImage.put(i,j,0);
+                }
+                classArray[rowNum][colNum] = class_index;
+
+
+                colNum++;
+                if(colNum%imgWidth == 0){
+                    colNum = 0;
+                    rowNum++;
+                }
+
+            }
+        }
+
+        // If pseudo creation parameter is true then create pseudo image
+        if(BB_Parameters.displaypseudoLabelImage)
+            createPseudoImage(classArray, fixedRangeModels, img, 1);
+
+        return classArray;
+
+    }
+
+
+
     static Vector<GMM> readParametersForMixtureOfGaussiansForAllDataClasses(String gmmsfilename, Context context, double standard_Deviation_Factor){
         Vector<GMM> gmms = new Vector();
         // Step 1: Cycle through each class's file representing its GMM (Gaussian Mixture Model)
@@ -313,6 +433,31 @@ public class Filter_Utility {
                 }
                 else
                     pseudoImage.put(i, j, gmms.elementAt(classArray[i][j]).pseudocolor); // Note: each gmm in the gmm vector has associated with it a data class gmm.className
+            }
+        }
+    }
+
+    /**
+     * This method takes as input a matrix of same dimensions as original image
+     * that contains the class label of each pixel, the vector of GMMs, and
+     * a matrix to put the pseudo image.  The method uses the classArray values
+     * to modify the pixels in pseudoImage to represent the r,g,b,a value associated
+     * with that class.
+     * @param classArray
+     * @param fixedRangeModels
+     * @param pseudoImage
+     */
+    static void createPseudoImage(int[][] classArray, Vector<ClassedMultipleFixedRangeModel> fixedRangeModels, Mat pseudoImage, int ignore){
+        int imgWidth = classArray.length;
+        int imgHeight = classArray[1].length;
+
+        for(int i = 0; i < imgWidth; i++){
+            for(int j = 0; j < imgHeight; j++){
+                if(classArray[i][j] == -1){
+                    pseudoImage.put(i, j, BB_Parameters.otherClassPseudocolor);
+                }
+                else
+                    pseudoImage.put(i, j, fixedRangeModels.elementAt(classArray[i][j]).pseudocolor); // Note: each gmm in the gmm vector has associated with it a data class gmm.className
             }
         }
     }

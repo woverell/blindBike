@@ -218,4 +218,10 @@ public class Route {
 	public GeoPoint[] getShapePoints() {
 		return this.shapePoints;
 	}
+
+	public int numShapePoints(){return this.shapePoints.length;}
+
+	public GeoPoint getShapePoint(int index){
+		return this.shapePoints[index];
+	}
 }

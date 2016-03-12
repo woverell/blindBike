@@ -97,6 +97,11 @@ public class InstructionManager {
 	private List<GeoPoint> intersections;
 
 	/**
+	 * Index of current shape point in the navigation
+	 */
+	private int currentShapePointIndex = 0;
+
+	/**
 	 * Constructor of the InstructionManager class
 	 * 
 	 * @param guidance
@@ -550,6 +555,52 @@ public class InstructionManager {
 				}
 			}
 			return instruction;
+		}
+	}
+
+	/**
+	 * Returns true if there are more shape points in the route
+	 * Returns false if there are no more shape points in the route
+	 * @return
+	 */
+	public boolean hasShapePointsLeft(){
+		if(this.currentShapePointIndex < this.route.numShapePoints())
+			return true;
+		else
+			return false;
+	}
+
+	/**
+	 * returns the shape point the user passed most recently, the last one passed
+	 * @return
+	 */
+	public GeoPoint getCurrentSP(){
+		return this.route.getShapePoint(this.currentShapePointIndex);
+	}
+
+	/**
+	 * Returns the shape point the user is heading to now, the next one to pass through
+	 * @return
+	 */
+	public GeoPoint getNextSP(){
+		return this.route.getShapePoint(this.currentShapePointIndex + 1);
+	}
+
+	/**
+	 * Shifts the current shape point index to indicate that we are now on the next shape point
+	 * This means we have passed through a shape point.
+	 */
+	public void goToNextSP(){
+		if(this.currentShapePointIndex + 1 <= this.route.numShapePoints())
+			this.currentShapePointIndex++;
+	}
+
+	/**
+	 * Shifts the current shape point index to indicate we are at the previous shape point
+	 */
+	public void goToPreviousSP(){
+		if(this.currentShapePointIndex - 1 >= 0){
+			this.currentShapePointIndex--;
 		}
 	}
 

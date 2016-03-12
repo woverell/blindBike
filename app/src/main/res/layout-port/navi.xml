@@ -40,13 +40,28 @@
         android:orientation="vertical"
         android:weightSum="1">
 
-        <edu.csueb.ilab.blindbike.blindbike.CustomizeView
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="0.5"
-            android:id="@+id/opencv_java_camera_view"
-            opencv:show_fps="true"
-            opencv:camera_id="any" />
+            android:layout_weight="0.5">
+
+            <edu.csueb.ilab.blindbike.blindbike.CustomizeView
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:id="@+id/opencv_java_camera_view"
+                opencv:show_fps="true"
+                opencv:camera_id="any" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceSmall"
+                android:text="Bearing"
+                android:textColor="@color/RED"
+                android:id="@+id/bearingTextView"
+                android:layout_gravity="right|top" />
+
+        </FrameLayout>
 
         <RelativeLayout
             android:layout_width="match_parent"

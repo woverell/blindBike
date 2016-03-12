@@ -63,9 +63,11 @@ public class BB_Parameters {
     // If false then classifies with one road class GMM
     public static final boolean classifyByMultipleClasses = true;
 
+    public static final boolean classifyByGMM_NOT_FixedRange = false;
+
     // This is to create for display pseudo color labeled image
     // Either multiple classes or just road or non-road
-    public static final boolean displaypseudoLabelImage = false;
+    public static final boolean displaypseudoLabelImage = true;
 
     public static final boolean displayRoadBinaryImage = false;
 
@@ -75,9 +77,9 @@ public class BB_Parameters {
 
     public static final boolean displayTopTwoContours = false;
 
-    public static final boolean displayHoughLines = false;
+    public static final boolean displayHoughLines = true;
 
-    public static final boolean displayBinaryContourImage = true;
+    public static final boolean displayBinaryContourImage = false;
 
     // Parameter for erosion/dilation value of roadBinaryImage
     public static final boolean perform_Erosion_Dilation = false;
@@ -87,16 +89,20 @@ public class BB_Parameters {
     // Parameter for Hough Lines Detection in GlobalRF
     public static final double houghRhoResolution_PercentRunningResolution_AccumulatorSpace = 5.0;
     public static double houghRhoResolution_RunningResolution_AccumulatorSpace;
-    public static final double houghThetaResolution_AccumulatorSpace = Math.PI / 180;
+    //public static final double houghThetaResolution_AccumulatorSpace = Math.PI / 180;
+    public static final int houghThetaResolution = 180;
+    public static final int houghRhoResolution = 320;
     // Minimum Number of votes to consider line
     public static final int houghMinNumVotes = 20;
     public static final int houghMaxLineGap = 1;
+    public static final int houghNumTopLines = 10;
+    public static final int houghNeighborhoodSize = 4;
 
     // Line Selection Algorithm Parameters
     // Angle Range
     // Angle of 0 or 180 is vertical line
-    public static final int lineSelectionAngleRangeLow = 50; // decrease this to narrow range (min 1)
-    public static final int lineSelectionAngleRangeHigh = 130; // increase this to narrow range (max 179)
+    public static final int lineSelectionAngleRangeLow = 45; // decrease this to narrow range (min 1)
+    public static final int lineSelectionAngleRangeHigh = 135; // increase this to narrow range (max 179)
 
 
     // Parameter for blob search area

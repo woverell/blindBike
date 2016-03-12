@@ -23,7 +23,10 @@ import java.util.Iterator;
 import java.util.Vector;
 import java.util.List;
 
+import com.google.gson.*;
+
 import edu.csueb.ilab.blindbike.blindbike.BB_Parameters;
+import edu.csueb.ilab.blindbike.blindbike.R;
 
 /**
  * Created by Lynne on 5/22/2015.   new111
@@ -92,12 +95,15 @@ public class GlobalRF {
 
     Vector<GMM> gmms;
 
+    Vector<ClassedMultipleFixedRangeModel> fixedRangeModels;
+
     /**
      * Constructor
      */
     public GlobalRF(Context context){
 
         gmms = new Vector();
+        fixedRangeModels = new Vector<ClassedMultipleFixedRangeModel>();
 
         pseudoColorRandom = new java.util.Random((new java.util.Date()).getTime());
 
@@ -109,6 +115,20 @@ public class GlobalRF {
             gmms = Filter_Utility.readParametersForMixtureOfGaussiansForAllDataClasses("gmmFileForAllDataClasses.dat", context, BB_Parameters.std_dev_range_factor);
         else
             gmms = Filter_Utility.readParametersForMixtureOfGaussiansForAllDataClasses("gmmFileForAllDataClasses.dat", context, BB_Parameters.std_dev_range_factor_small);
+
+        if(BB_Parameters.classifyByGMM_NOT_FixedRange == false){
+            Gson gson = new Gson();
+
+            // now read in sky model
+            String testJsonString = context.getResources().getString(R.string.sky_class);
+            fixedRangeModels.add(gson.fromJson(testJsonString, ClassedMultipleFixedRangeModel.class));
+            // now read in road model
+            testJsonString = context.getResources().getString(R.string.road_class);
+            fixedRangeModels.add(gson.fromJson(testJsonString, ClassedMultipleFixedRangeModel.class));
+            // now read in white line model
+            testJsonString = context.getResources().getString(R.string.whiteline_class);
+            fixedRangeModels.add(gson.fromJson(testJsonString, ClassedMultipleFixedRangeModel.class));
+        }
 
     }
 
@@ -169,18 +189,25 @@ public class GlobalRF {
         // PHASE 5: Classification
         // Create and display pseudo colored image of all classes if stage to display is set to 1
         if(BB_Parameters.classifyByMultipleClasses == true) {
-            Filter_Utility.classifyImageIntoDataClasses(gmms, regionOfInterest, this.roadBinaryImage);
-
+            if(BB_Parameters.classifyByGMM_NOT_FixedRange == true)
+                Filter_Utility.classifyImageIntoDataClasses(gmms, regionOfInterest, this.roadBinaryImage);
+            else
+                Filter_Utility.classifyImageIntoDataClasses(fixedRangeModels, regionOfInterest, this.roadBinaryImage, 1);
         }
         // ELSE Create the ONLY by road road binary image(this.roadBinaryImage)
         else {
-            Filter_Utility.classifyImageIntoDataClass(gmms.elementAt(BB_Parameters.gmm_road_class_index), regionOfInterest, this.roadBinaryImage);
+            if(BB_Parameters.classifyByGMM_NOT_FixedRange == true)
+                Filter_Utility.classifyImageIntoDataClass(gmms.elementAt(BB_Parameters.gmm_road_class_index), regionOfInterest, this.roadBinaryImage);
+            else
+                Filter_Utility.classifyImageIntoDataClass(fixedRangeModels.elementAt(BB_Parameters.gmm_road_class_index), regionOfInterest, this.roadBinaryImage);
         }
 
         // If stageToDisplay set to 2 then display the roadBinaryImage
         if (BB_Parameters.displayRoadBinaryImage == true) {
-            Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, gmms.elementAt(BB_Parameters.gmm_road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
-
+            if(BB_Parameters.classifyByGMM_NOT_FixedRange)
+                Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, gmms.elementAt(BB_Parameters.gmm_road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
+            else
+                Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, fixedRangeModels.elementAt(BB_Parameters.gmm_road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
         }
 
         // PHASE 6: Blob Detection
@@ -291,7 +318,6 @@ public class GlobalRF {
         // Make new mat same size as original image and
         // Initalize all pixels in binaryContourImage to 0,0,0
         Mat binaryContourImage = new Mat(regionOfInterest.size(), CvType.CV_8UC1, new Scalar(0));
-        Mat lines = new Mat();
         // Draw contour onto binaryContourImage fill with 255
         if (topContours[0] != null && topContours[1] == null)
             Imgproc.drawContours(binaryContourImage, Arrays.asList(topContours[0]), -1, new Scalar(255), 1);
@@ -303,18 +329,23 @@ public class GlobalRF {
 
 
         // Run Hough Transform on binaryContourImage
-        Imgproc.HoughLines(binaryContourImage, lines, BB_Parameters.houghRhoResolution_PercentRunningResolution_AccumulatorSpace, BB_Parameters.houghThetaResolution_AccumulatorSpace, BB_Parameters.houghMinNumVotes);
+        //Imgproc.HoughLines(binaryContourImage, lines, BB_Parameters.houghRhoResolution_PercentRunningResolution_AccumulatorSpace, BB_Parameters.houghThetaResolution_AccumulatorSpace, BB_Parameters.houghMinNumVotes);
         //Imgproc.HoughLinesP(binaryContourImage, lines, BB_Parameters.houghRhoResolution_PercentRunningResolution_AccumulatorSpace, BB_Parameters.houghThetaResolution_AccumulatorSpace, BB_Parameters.houghMinNumVotes);
 
+        // WILL: MAKE THESE TWO GLOBAL FOR REUSE!!
+        Hough_Lines.ArrayData outputData = new Hough_Lines.ArrayData(BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution);
+        double[][] linesData;
+        Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh);
+        linesData = Hough_Lines.findLines(outputData, binaryContourImage.height(), binaryContourImage.width(), BB_Parameters.houghNumTopLines, BB_Parameters.houghMinNumVotes, BB_Parameters.houghNeighborhoodSize);
+
         // Draw lines on imgFrame
-        for (int i = lines.cols() - 1; i >= 0; i--) {
-            double[] currentLine = lines.get(0, i);
-            double rho = currentLine[0];
-            double theta = currentLine[1];
-            Log.i("Line", "Num:" + Integer.toString(i) +" rho:" + Double.toString(rho) + " theta" + Double.toString(theta));
-            //if (theta > Math.PI / 180 * BB_Parameters.lineSelectionAngleRangeHigh || theta < Math.PI / 180 * BB_Parameters.lineSelectionAngleRangeLow) {
-                //Point pt1 = new Point(currentLine[0],currentLine[1]);
-                //Point pt2 = new Point(currentLine[2], currentLine[3]);
+        for (int i = BB_Parameters.houghNumTopLines - 1; i >= 0; i--) {
+            double[] currentLine = linesData[i];
+            double rho = currentLine[1];
+            double theta = currentLine[0];
+            int numVotes = (int)currentLine[2];
+            if(numVotes > 0) {
+                Log.i("Line", "Num:" + Integer.toString(i) + " rho:" + Double.toString(rho) + " theta" + Double.toString(theta));
                 Point pt1 = new Point();
                 Point pt2 = new Point();
 
@@ -325,9 +356,9 @@ public class GlobalRF {
                 pt2.x = Math.round(x0 - 1000 * (-b));
                 pt2.y = Math.round(y0 - 1000 * (a));
 
-                if(BB_Parameters.displayHoughLines == true) {
+                if (BB_Parameters.displayHoughLines == true) {
                     if (i == 0)
-                        Core.line(regionOfInterest, pt1, pt2, new Scalar(0, 0, 0));// black
+                        Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 0, 255)); // pink
                     else if (i == 1)
                         Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 0, 0)); // red
                     else if (i == 2)
@@ -335,10 +366,11 @@ public class GlobalRF {
                     else if (i == 3)
                         Core.line(regionOfInterest, pt1, pt2, new Scalar(0, 255, 255)); // teal
                     else if (i == 4)
-                        Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 100, 0)); // white
-                    //else
-                        //Core.line(regionOfInterest, pt1, pt2, new Scalar(0, 0, 255));
+                        Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 100, 0)); // orange
+                    else
+                        Core.line(regionOfInterest, pt1, pt2, new Scalar(0, 0, 255)); // blue
                 }
+            }
             //}
         }
 
