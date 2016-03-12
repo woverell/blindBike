@@ -244,14 +244,29 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private double desiredBearing = -1;
 
+	/**
+	 * This stores the previous distance to the candidate shape point
+	 */
 	private double last_distance = 0;
 
-	private boolean currentSPNotFound = true;
+	/**
+	 * This will be true when the current shape point is found
+	 */
+	private boolean currentSPFound = false;
 
-	private boolean candidateSPNotFound = true;
+	/**
+	 * This will be true when the candidate shape point is found
+	 */
+	private boolean candidateSPFound = false;
 
+	/**
+	 * This stores the candidate shape point latitude
+	 */
 	private double candidateCurrentSPLat;
 
+	/**
+	 * This stores the candidate shape point longitude
+	 */
 	private double candidateCurrentSPLng;
 
 	private boolean beenWithinNodeWindow = false;
@@ -963,7 +978,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		if (im != null) {
 
 			// If the candidate shape point hasn't been found yet
-			if (this.candidateSPNotFound) {
+			if (!this.candidateSPFound) {
 				// Get the coordinates of the current shape point
 				double currentSPLat = im.getCurrentSP().getLatitude();
 				double currentSPLng = im.getCurrentSP().getLongitude();
@@ -999,11 +1014,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 				this.candidateCurrentSPLat = currentSPLat;
 				this.candidateCurrentSPLng = currentSPLng;
-				this.candidateSPNotFound = false;
+				this.candidateSPFound = true;
 			}
 
 			// If the current shape point hasn't been found yet
-			if(this.currentSPNotFound){
+			if(!this.currentSPFound){
 				float[] distanceResults = new float[1];
 				Location.distanceBetween(lat, lng, this.candidateCurrentSPLat, this.candidateCurrentSPLng, distanceResults);
 
@@ -1013,11 +1028,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 					// if our current distance to the candidate is greater than it was last location update
 					if (distanceResults[0] > this.last_distance) {
 						// then this candidate is our current shape point, so we have found the current SP
-						this.currentSPNotFound = false;
+						this.currentSPFound = true;
 					} else {
 						// otherwise the previous candidate was our current shape point and we found the current SP
 						im.goToPreviousSP();
-						this.currentSPNotFound = false;
+						this.currentSPFound = true;
 					}
 				}
 
@@ -1035,28 +1050,28 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				// should never happen unless we have gotten past the current shape point)
 
 				if(im.hasShapePointsLeft()){
-				if (distanceResults[0] < SHAPE_POINT_DISTANCE_THRESHOLD) {
+					if (distanceResults[0] < SHAPE_POINT_DISTANCE_THRESHOLD) {
 
-					im.goToNextSP(); // shift to the next shape point
+						im.goToNextSP(); // shift to the next shape point
 
-						// update the lat and long
+						// get the current and next shape point
 						currentSPLat = im.getCurrentSP().getLatitude();
 						currentSPLng = im.getCurrentSP().getLongitude();
 						nextSPLat = im.getNextSP().getLatitude();
 						nextSPLng = im.getNextSP().getLongitude();
 
-						// bearing calculation
+						// calculate the bearing
 						double X = Math.cos(nextSPLat) * Math.sin(nextSPLng - currentSPLng);
 						double Y = (Math.cos(currentSPLat) * Math.sin(nextSPLat)) - (Math.sin(currentSPLat) * Math.cos(nextSPLat) * Math.cos(nextSPLng - currentSPLng));
 
 						this.desiredBearing = (Math.toDegrees(Math.atan2(X, Y)) + 360) % 360;
-						this.bearingTextView.setText(Double.toString(this.desiredBearing));
+						this.bearingTextView.setText(Double.toString(this.desiredBearing)); // display the bearing
+					}
+				}else{
+					// if no shape points left set bearing to -1 to signify no bearing available
+					this.desiredBearing = -1;
 				}
-			}else{
-				// if no shape points left set bearing to -1 to signify no bearing available
-				this.desiredBearing = -1;
 			}
-		}
 
 			// Get the coordinates of the next decision point
 			double dp1Lat = im.getCurrentInstruction().getDecisionPoint()
