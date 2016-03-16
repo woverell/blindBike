@@ -545,6 +545,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	/**
 	 * Get the guidance information from MapQuest
 	 */
+	String url_elevation="",url_directions="";
 	private void getGuidance() {
 		// Create the URL to request the guidance from MapQuest
 		String url;
@@ -556,6 +557,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 					+ "&to="
 					+ URLEncoder.encode(str_destination, "UTF-8")
 					+ "&narrativeType=text&fishbone=false&callback=renderBasicInformation";
+
+
             Log.v("WILLIAM:", "WILLIAM  " + url);
 
 		} catch (UnsupportedEncodingException e) {
@@ -607,12 +610,14 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			downloadTimer = Calendar.getInstance().get(Calendar.SECOND);
 		}
 
+		JSONObject result_elevation,result_directions;
 		@Override
 		protected JSONObject doInBackground(String... url) {
 			// Get the data from the URL
-			String output = "";
+			String output = "",output1="",output12="";
 			HttpClient httpclient = new DefaultHttpClient();
 			HttpResponse response;
+			JSONObject import_elevation = new JSONObject();
 			try {
 				response = httpclient.execute(new HttpGet(url[0]));
 				StatusLine statusLine = response.getStatusLine();
@@ -621,6 +626,88 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 					response.getEntity().writeTo(out);
 					out.close();
 					output = out.toString();
+					//reuse objects for elevation
+					try {
+						// end of the output if needed to convert it to a JSONObject
+						if (output.startsWith("renderBasicInformation(")) {
+							output = output.substring(23, output.length());
+						}
+						if (output.endsWith(");")) {
+							output = output.substring(0, output.length() - 2);
+						}
+
+						/*JSONObject result_inter = new JSONObject(output);
+						//URL for elevation api MapQuest
+						JSONObject import_elevation = result_inter.getJSONObject("guidance");*/
+
+						//Get Session ID for the elevation
+						url_directions = "https://open.mapquestapi.com/directions/v2/route?key="
+								+ getResources().getString(R.string.apiKey)
+								+ "&from="
+								+ URLEncoder.encode(str_currentLocation, "UTF-8")
+								+ "&to="
+								+ URLEncoder.encode(str_destination, "UTF-8")
+								+ "&narrativeType=text&fishbone=false&callback=renderBasicInformation";
+/*
+
+						//url for elevation
+						url_elevation = "https://open.mapquestapi.com/elevation/v1/profile?key=" + getResources().getString(R.string.apiKey)
+								+ "&inFormat=kvp&outFormat=json&unit=m&shapeFormat=raw"
+								+ "&latLngCollection=" + import_elevation.getJSONArray("locations").getJSONObject(0).getJSONObject("latLng").getDouble("lat") + ","
+								+ import_elevation.getJSONArray("locations").getJSONObject(0).getJSONObject("latLng").getDouble("lng")
+								+ ","
+								+ import_elevation.getJSONArray("locations").getJSONObject(1).getJSONObject("latLng").getDouble("lat") + ","
+								+ import_elevation.getJSONArray("locations").getJSONObject(1).getJSONObject("latLng").getDouble("lng");
+*/
+
+					}
+					catch(Exception je)
+					{
+						je.printStackTrace();
+					}
+
+
+					//Query for Session ID
+					response = httpclient.execute(new HttpGet(url_directions));
+					StatusLine statusLine12 =  response.getStatusLine();
+					if(statusLine12.getStatusCode() == HttpStatus.SC_OK){
+						ByteArrayOutputStream out12 = new ByteArrayOutputStream();
+						response.getEntity().writeTo(out12);
+						out12.close();
+						output12 = out12.toString();
+					}
+					if (output12.startsWith("renderBasicInformation(")) {
+						output12 = output12.substring(23, output12.length());
+					}
+					if (output12.endsWith(");")) {
+						output12 = output12.substring(0, output12.length() - 2);
+					}
+					try {
+						result_directions = new JSONObject(output12);
+						import_elevation = result_directions.getJSONObject("route");
+					}
+					catch (JSONException je3)
+					{
+						je3.printStackTrace();
+					}
+					//Query for elevation
+
+					//url for elevation
+					String sess_ID=import_elevation.getString("sessionId");
+					url_elevation = "https://open.mapquestapi.com/elevation/v1/profile?key=" + getResources().getString(R.string.apiKey)
+							+ "&inFormat=kvp&outFormat=json"
+							+ "&sessionId="+ sess_ID
+							+ "&unit=m&shapeFormat=raw";
+
+					response = httpclient.execute(new HttpGet(url_elevation));
+					StatusLine statusLine1 =  response.getStatusLine();
+					if(statusLine1.getStatusCode() == HttpStatus.SC_OK){
+						ByteArrayOutputStream out11 = new ByteArrayOutputStream();
+						response.getEntity().writeTo(out11);
+						out11.close();
+						output1 = out11.toString();
+
+					}
 				} else {
 					// Close the connection
 					response.getEntity().getContent().close();
@@ -642,10 +729,20 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				output = output.substring(0, output.length() - 2);
 			}
 
+			//Delete "RenderBasicInformation" stuff for the elevation object
+			if (output1.startsWith("renderBasicInformation(")) {
+				output1 = output1.substring(23, output1.length());
+			}
+			if (output1.endsWith(");")) {
+				output1 = output1.substring(0, output1.length() - 2);
+			}
+
 			// Convert the output to a JSONObject
 			try {
 				JSONObject result = new JSONObject(output);
-				return result;
+
+				result_elevation = new JSONObject(output1);
+					return result;
 			} catch (JSONException e) {
 				Log.e("GetJsonTask",
 						"Could not convert output to JSONObject. This is the error message: "
@@ -822,7 +919,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				index++;
 				tld_array_list.get(i).setLng(shapePoints.getDouble(index));
 			}
-
+			Log.i("CHRIS:","I reaached here!");
 
 
 
