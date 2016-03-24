@@ -1,6 +1,7 @@
 package edu.csueb.ilab.blindbike.lightdetection;
 
 import android.os.Environment;
+import android.provider.Settings;
 import android.util.Log;
 
 import org.opencv.core.Core;
@@ -21,14 +22,21 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
+
+
 /**
  * Created by Lynne on 5/22/2015. new
  */
 public class LightDetector {
-    public void processFrame(Mat imgFrame) {
-       // change
-    }
 
+    static String tl_flag="";
+
+    public String getTl_flag(){
+        return tl_flag;
+    }
+    public void setTl_flag(String flg){
+        tl_flag = flg;
+    }
     // Lower and Upper bounds for range checking in HSV color space
     private Scalar mLowerBound = new Scalar(0); 	//for blue 120,100,100 Current: 176,255,244 ::perfect working Green 70,20,100
     // for flouracent green light 57,255,20
@@ -84,7 +92,7 @@ public class LightDetector {
         mLowerBound.val[3] = 0;
         mUpperBound.val[3] = 255;*/
 
-        Mat spectrumHsv = new Mat(1, (int)(maxH-minH), CvType.CV_8UC3);
+        Mat spectrumHsv = new Mat(1, Math.abs((int)(maxH-minH)), CvType.CV_8UC3);
 
         for (int j = 0; j < maxH-minH; j++) {
             byte[] tmp = {(byte)(minH+j), (byte)255, (byte)255};
@@ -134,6 +142,7 @@ public class LightDetector {
                 mLowerBound.val[3] = 0;
                 mUpperBound.val[3] = 255;
                 tl_status = "Set Red";
+
             }
             else if(tl_status.equalsIgnoreCase("Set Red") && contours.size()==0)
             {
@@ -149,6 +158,7 @@ public class LightDetector {
                 mLowerBound.val[3] = 0;
                 mUpperBound.val[3] = 255;
                 tl_status = "Set Green";
+                tl_flag="GREEN";
             }
             else if(tl_status.equalsIgnoreCase("Set Green") && contours.size()==0)
             {
@@ -164,6 +174,8 @@ public class LightDetector {
                 mLowerBound.val[3] = 0;
                 mUpperBound.val[3] = 255;
                 tl_status = "Set Red";
+                tl_flag="RED";
+
             }
         }
 
@@ -247,6 +259,7 @@ public class LightDetector {
                 Log.i("Save Status", "Fail writing image to external storage");
 
             Core.rectangle(rgbaImage, new Point(rect.x,rect.y), new Point(rect.x+rect.width,rect.y+rect.height),new Scalar(255,225,0,0),3);
+
         }
 
 

@@ -37,6 +37,7 @@ import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
+import org.w3c.dom.Text;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -1072,7 +1073,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		SPECTRUM_SIZE = new Size(200, 64);
 		CONTOUR_COLOR = new Scalar(255,0,0,255);
 	}
-
+	double d;
 	public double Calculate_rows()
 	{
 		//trying values
@@ -1087,11 +1088,20 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		int lr=360;		//center row of the image
 	//	double r_min=10.00,r_max=70.00,d=1524,b=20;
 	//	double r_min=180.00,r_max=240.00,d=2000,b=110;	//Dim of the note on the wall
-		double r_min=480.00,r_max=700.00,d=dis,b=110;	//Dim of the Traffic Light b=110
+		double r_min=480.00,r_max=700.00,b=110;	//Dim of the Traffic Light b=110
+		d=dis;
+		//d is assigned 3010 to avoid error with min_row_bound and max_row_bound &
+		//To avoid mIsColorDetected flag to be true during initialization
 		if(d==0)
-			d=3000;
+			d=3010;
 		//values: for d = 100 steps for 30 mts; 67 steps for 20 mts; 33 steps for 10 mts
 		if(d<=3000 && d>=900) {
+			d=3000;
+			if(d==1903)
+				d=1900;
+			if(d==1899)
+				d=1900;
+
 			Tmin = (float) Math.toDegrees(Math.atan((r_min - b) / d));
 			sc_min = f * (Math.tan(Tmin));
 			Log.i("CHRIS Vals: ", String.valueOf(Math.tan(Tmin)));
@@ -1115,8 +1125,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			max_row_bound = max_row_bound - 200;
 
 			///for 2500 as it has less rows in betwen &5000
-			max_row_bound = max_row_bound + 40;
-			mIsColorSelected = true;
+			max_row_bound = max_row_bound + 100;
+ 			mIsColorSelected = true;
 		}
 		else
 		{
@@ -1211,7 +1221,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		Rect roi = new Rect(0,0,wi,mRgbabright.cols());
 
-		Mat cropped = new Mat(mRgbabright, new Range(0,wi),new Range(0,mRgbabright.cols()));
+//		Mat cropped = new Mat(mRgbabright, new Range(0,wi),new Range(0,mRgbabright.cols()));
 
 		//touched rectangle solution for cropping
 /*
@@ -1238,15 +1248,23 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		Mat touchedRegionHsv = new Mat();
 		//touchedRegionRgba
-		int row_start=(int)min_row_bound;
-		int row_end=(int)max_row_bound;
-		int row_start_low=(int)min_row_bound_low;
-		int row_end_low=(int)max_row_bound_low;
+		int row_start=0;
 
+		if(min_row_bound<0)
+			row_start=Math.abs((int)min_row_bound);
+		else
+			row_start=(int)min_row_bound;
+
+		int row_end;
+		if(max_row_bound<0)
+			row_end =Math.abs((int)max_row_bound);
+		else
+			row_end=(int)max_row_bound;
+
+	//	if(row_start>=350 && row_start<=360)
+	//		row_start=350;
+	//	Mat cropped_rect=mRgbabright.submat(row_start,row_end,100,700);//row_start,row_end,col_start,col_end
 		Mat cropped_rect=mRgbabright.submat(row_start,row_end,100,700);//row_start,row_end,col_start,col_end
-		//trying for lower signal
-		//Mat cropped_rect_low=mRgbabright.submat(row_start_low,row_end_low,100,700);//row_start,row_end,col_start,col_end
-
 		Imgproc.cvtColor(cropped_rect, touchedRegionHsv, Imgproc.COLOR_BGR2HSV_FULL); //COLOR_RGB2HSV_FULL
 		//touchedRegionHsv.copyTo(cropped_rect_low);
 		// Calculate average color of touched region
@@ -1281,6 +1299,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 			Mat spectrumLabel = mRgbabright.submat(4, 4 + mSpectrum.rows(), 70, 70 + mSpectrum.cols());
 			mSpectrum.copyTo(spectrumLabel);
+			//Update the instructions to show red and Green lights on the TV instruction
+			displayTLInstruction();
 		}
 
 		return mRgbabright;
@@ -1605,6 +1625,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 * @param instruction
 	 *            The instruction to be displayed
 	 */
+
 	private void displayInstruction(Instruction instruction) {
 		// --- Update the instruction view ---
 		// Get the next verbal instruction
@@ -1613,8 +1634,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		this.tv_instruction.setText(nextVerbalInstruction);
 
 		// Get the corresponding instruction image and display it
-		this.iv_instruction.setImageDrawable(getResources().getDrawable(
-				Maneuver.getDrawableId(instruction.getManeuverType())));
+		this.iv_instruction.setImageDrawable(getResources().getDrawable(Maneuver.getDrawableId(instruction.getManeuverType())));
 		// --- End of update the instruction view ---
 
 		// --- Update the landmarks on the map (if available) ---
@@ -1625,40 +1645,129 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		// Add new local landmark (if available)
 		if (instruction.getClass().equals(LandmarkInstruction.class)) {
-			Landmark newLocalLandmark = ((LandmarkInstruction) instruction)
-					.getLocal();
-			OverlayItem oi_newLocalLandmark = new OverlayItem(
-					newLocalLandmark.getCenter(), newLocalLandmark.getTitle(),
-					newLocalLandmark.getCategory());
-			MyDefaultItemizedOverlay newLocalLandmarkOverlay = new MyDefaultItemizedOverlay(
-					getResources().getDrawable(
-							LandmarkCategory.getDrawableId(newLocalLandmark
-									.getCategory())));
+			Landmark newLocalLandmark = ((LandmarkInstruction) instruction).getLocal();
+			OverlayItem oi_newLocalLandmark = new OverlayItem(newLocalLandmark.getCenter(), newLocalLandmark.getTitle(),newLocalLandmark.getCategory());
+			MyDefaultItemizedOverlay newLocalLandmarkOverlay = new MyDefaultItemizedOverlay(getResources().getDrawable(LandmarkCategory.getDrawableId(newLocalLandmark.getCategory())));
 			newLocalLandmarkOverlay.addItem(oi_newLocalLandmark);
-			this.map.getOverlays().add(this.INDEX_OF_LANDMARK_OVERLAY,
-					newLocalLandmarkOverlay);
+			this.map.getOverlays().add(this.INDEX_OF_LANDMARK_OVERLAY,newLocalLandmarkOverlay);
 		}
 
 		// Add new global landmark (if available)
 		if (instruction.getClass().equals(GlobalInstruction.class)) {
-			Landmark newGlobalLandmark = ((GlobalInstruction) instruction)
-					.getGlobal();
+			Landmark newGlobalLandmark = ((GlobalInstruction) instruction).getGlobal();
 			OverlayItem oi_newGlobalLandmark = new OverlayItem(
 					newGlobalLandmark.getCenter(),
 					newGlobalLandmark.getTitle(),
 					newGlobalLandmark.getCategory());
-			MyDefaultItemizedOverlay newGlobalLandmarkOverlay = new MyDefaultItemizedOverlay(
-					getResources().getDrawable(
-							LandmarkCategory.getDrawableId(newGlobalLandmark
-									.getCategory())));
+			MyDefaultItemizedOverlay newGlobalLandmarkOverlay = new MyDefaultItemizedOverlay(getResources().getDrawable(LandmarkCategory.getDrawableId(newGlobalLandmark.getCategory())));
 			newGlobalLandmarkOverlay.addItem(oi_newGlobalLandmark);
-			this.map.getOverlays().add(this.INDEX_OF_LANDMARK_OVERLAY,
-					newGlobalLandmarkOverlay);
+			this.map.getOverlays().add(this.INDEX_OF_LANDMARK_OVERLAY,newGlobalLandmarkOverlay);
 		}
+
 		// --- End of updating map ---
 
 		// Speak out the verbal instruction
 		speakInstruction();
+	}
+
+	private void displayTLInstruction()
+	{
+
+		String flg=mDetector.getTl_flag();
+		if(flg.equalsIgnoreCase("RED"))
+		{
+			try {
+			if(d<=3000 && d>1500) {
+
+					String nextVerbalInstruction = "Detected Red Light, Slow Down";
+					//Load red signal
+					// Display the verbal instruction
+
+					TextView tv_ins = (TextView) findViewById(R.id.tv_instruction);
+					tv_ins.setText(nextVerbalInstruction);
+					// Get the corresponding instruction image and display it
+					ImageView iv_ins = (ImageView) findViewById(R.id.iv_instruction);
+					iv_ins.setImageDrawable(getResources().getDrawable(R.drawable.tl_red_light));
+
+				}
+				else if(d<=1500 && d>900)
+				{
+					String nextVerbalInstruction = "Detected Red Light, Stop!";
+					//Load red signal
+					// Display the verbal instruction
+
+					TextView tv_ins = (TextView) findViewById(R.id.tv_instruction);
+					tv_ins.setText(nextVerbalInstruction);
+					// Get the corresponding instruction image and display it
+					ImageView iv_ins = (ImageView) findViewById(R.id.iv_instruction);
+					iv_ins.setImageDrawable(getResources().getDrawable(R.drawable.tl_red_light));
+
+				}
+				else if(d<=900)
+				{
+					String nextVerbalInstruction = "Detected Red Light, Stop!";
+					//Load red signal
+					// Display the verbal instruction
+
+					TextView tv_ins = (TextView) findViewById(R.id.tv_instruction);
+					tv_ins.setText(nextVerbalInstruction);
+					// Get the corresponding instruction image and display it
+					ImageView iv_ins = (ImageView) findViewById(R.id.iv_instruction);
+					iv_ins.setImageDrawable(getResources().getDrawable(R.drawable.tl_red_light));
+
+				}
+				else
+				{
+					mDetector.setTl_flag("");
+				}
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
+		if(flg.equalsIgnoreCase("GREEN"))
+		{
+			try {
+				if(d<=3000 && d>900) {
+					String nextVerbalInstruction = "Detected Green Light, Proceed with caution";
+					//Load Green Signal
+					// Display the verbal instruction
+					TextView tv_ins1 = (TextView) findViewById(R.id.tv_instruction);
+					tv_ins1.setText(nextVerbalInstruction);
+					// Get the corresponding instruction image and display it
+					ImageView iv_ins = (ImageView) findViewById(R.id.iv_instruction);
+					iv_ins.setImageDrawable(getResources().getDrawable(R.drawable.tl_green_light));
+				}
+				else if(d<=900)
+				{
+					String nextVerbalInstruction = "Proceed across Intersection with Caution!";
+					//Load red signal
+					// Display the verbal instruction
+
+					TextView tv_ins = (TextView) findViewById(R.id.tv_instruction);
+					tv_ins.setText(nextVerbalInstruction);
+					// Get the corresponding instruction image and display it
+					ImageView iv_ins = (ImageView) findViewById(R.id.iv_instruction);
+					iv_ins.setImageDrawable(getResources().getDrawable(R.drawable.tl_green_light));
+
+				}
+				else
+				{
+					mDetector.setTl_flag("");
+				}
+			}
+			catch(Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
+		//Chris: Maybe we shd put a flag here that
+		//if RED then show red signal, If GREEN then show green and AMBER for amber
+		// --- End of updating map ---
+
+		// Speak out the verbal instruction
+		//speakInstruction();
 	}
 
 	/**
@@ -1666,8 +1775,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private void speakInstruction() {
 		tts.setSpeechRate((float) 0.85);
-		tts.speak(tv_instruction.getText().toString(),
-				TextToSpeech.QUEUE_FLUSH, null);
+		tts.speak(tv_instruction.getText().toString(),TextToSpeech.QUEUE_FLUSH, null);
 	}
 
 	/**
@@ -1733,4 +1841,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		updateGuidance(); // Perform reroute from current location
 		Log.i("NaviActivity", "Negative click!");
 	}
+
+
 }
+
+
