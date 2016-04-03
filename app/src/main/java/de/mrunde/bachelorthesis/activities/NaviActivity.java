@@ -135,6 +135,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private TextView bearingTextView;
 
 	/**
+	 * text view to show the merge direction
+	 */
+	private TextView directionsTextView;
+
+	/**
 	 * Instruction view (image)
 	 */
 	private ImageView iv_instruction;
@@ -165,6 +170,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 * overlay)
 	 */
 	private String str_destination;
+
+	private String directionsText;
 
 	/**
 	 * Latitude of the destination
@@ -235,7 +242,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	/**
 	 * Maximum distance to a shape point when it is considered as reached
 	 */
-	private final int SHAPE_POINT_DISTANCE_THRESHOLD = 15;
+	private final int SHAPE_POINT_DISTANCE_THRESHOLD = 8;
 
 	/**
 	 * The current desired bearing based on shape points of the route
@@ -418,6 +425,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		this.iv_instruction = (ImageView) findViewById(R.id.iv_instruction);
         this.reroute_button = (Button) findViewById(R.id.reroute_button);
 		this.bearingTextView = (TextView) findViewById(R.id.bearingTextView);
+		this.directionsTextView = (TextView) findViewById(R.id.directionsTextView);
         reroute_button.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
@@ -904,8 +912,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		}
 
 
-		int width = mRgba.width();
-		int height = mRgba.height();
+		//int width = mRgba.width();
+		//int height = mRgba.height();
 		//Log.i("NaviActivity", "width: " + width + "height: " + height + "\n");
 		// Step 2: Any preprocessing/noise removal???
 		// Step 3: Do we only process every x frames???
@@ -926,7 +934,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		obstacleAvoidance.processFrame(mRgba);
 
 		// CALL ROAD FOLLOWING(William)
-		globalRF.processFrame(mRgba);
+		this.directionsText = globalRF.processFrame(mRgba);
+
+		this.directionsTextView.setText(this.directionsText);
 
 		return mRgba;
 	}
@@ -978,6 +988,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		if (im != null) {
 
 			// If the candidate shape point hasn't been found yet
+			// This code is going through the shape points and finding the closest shape point to the user
+			// However this is not necessarily the current SP, if you are closest to the next shape point
+			// rather than the current one we need to account for that, see if(!this.currentSPFound) block
+			// which corrects for this
 			if (!this.candidateSPFound) {
 				// Get the coordinates of the current shape point
 				double currentSPLat = im.getCurrentSP().getLatitude();
@@ -989,6 +1003,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 				float[] distanceResultsA = new float[1], distanceResultsB = new float[1];
 
+				// Set the temp_distance_diff, which will be negative if the next shape point
+				// is closer to the user than the current shape point
 				Location.distanceBetween(lat, lng, currentSPLat, currentSPLng, distanceResultsA);
 				Location.distanceBetween(lat, lng, nextSPLat, nextSPLng, distanceResultsB);
 				float temp_distance_diff = distanceResultsB[0] - distanceResultsA[0];
@@ -1018,6 +1034,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			}
 
 			// If the current shape point hasn't been found yet
+			// What this code is doing is testing whether we are heading towards the candidate or away from the candidate
+			// If we are approaching the candidate then set the previous shape point as currentSP and the candidate as the
+			// nextSP, if we are leaving the candidate then set the candidate as currentSP and the next SP as nextSP
 			if(!this.currentSPFound){
 				float[] distanceResults = new float[1];
 				Location.distanceBetween(lat, lng, this.candidateCurrentSPLat, this.candidateCurrentSPLng, distanceResults);

@@ -2,20 +2,17 @@ package edu.csueb.ilab.blindbike.roadfollowing;
 
 import android.content.Context;
 import android.util.Log;
-import android.widget.Toast;
+import android.widget.TextView;
 
 import org.opencv.core.Core;
+import org.opencv.core.Rect;
 import org.opencv.core.Size;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
-import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
-import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
-import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
-import org.osmdroid.tileprovider.IMapTileProviderCallback;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -77,6 +74,11 @@ public class GlobalRF {
      */
     private int lane_width;
 
+    /**
+     * height cutoff for the region of interest, set by constructor
+     */
+    private int heightCutoff;
+
     /*
         Bike Tilt Angle
      */
@@ -88,8 +90,15 @@ public class GlobalRF {
         ---------------------------
      */
 
+    Hough_Lines.ArrayData outputData;
+    double[][] linesData;
+
+    Point topLinePt1; // stores the most recent top line point 1
+    Point topLinePt2; // stores the most recent op line point 2
+
     Mat roadBinaryImage;
     Mat hierarchy;
+    Rect boundingRect;
 
     java.util.Random pseudoColorRandom;
 
@@ -104,12 +113,15 @@ public class GlobalRF {
 
         gmms = new Vector();
         fixedRangeModels = new Vector<ClassedMultipleFixedRangeModel>();
-
+        outputData = new Hough_Lines.ArrayData(BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution);
         pseudoColorRandom = new java.util.Random((new java.util.Date()).getTime());
 
         //Initialize roadBinaryImage
         roadBinaryImage = new Mat(BB_Parameters.runningResolution_height - (int)(BB_Parameters.cutOff_Area_Of_Interest * BB_Parameters.scaleFactor_height), BB_Parameters.runningResolution_width, CvType.CV_8UC1);
         hierarchy = new Mat();
+        boundingRect = new Rect(0,0,roadBinaryImage.width(), roadBinaryImage.height());
+
+        heightCutoff = (int)(BB_Parameters.cutOff_Area_Of_Interest * BB_Parameters.scaleFactor_height); // adjusting for scale
 
         if(BB_Parameters.classifyByMultipleClasses == true)
             gmms = Filter_Utility.readParametersForMixtureOfGaussiansForAllDataClasses("gmmFileForAllDataClasses.dat", context, BB_Parameters.std_dev_range_factor);
@@ -129,7 +141,6 @@ public class GlobalRF {
             testJsonString = context.getResources().getString(R.string.whiteline_class);
             fixedRangeModels.add(gson.fromJson(testJsonString, ClassedMultipleFixedRangeModel.class));
         }
-
     }
 
     void Erosion( Mat toErode, int erosion_size)
@@ -171,43 +182,63 @@ public class GlobalRF {
      *
      * @param imgFrame
      */
-    public void processFrame(Mat imgFrame) {
+    public String processFrame(Mat imgFrame) {
+        boolean lineFound = false;
 
         // if the image is empty then don't process anything or if stage to display is original image
         if(imgFrame.empty())
-            return;
+            return "";
 
         // PHASE 3: Area of Interest
-        int heightCutoff = (int)(BB_Parameters.cutOff_Area_Of_Interest * BB_Parameters.scaleFactor_height); // adjusting for scale
-
         // regionOfInterest is a submat of imgFrame, any changes to regionOfInterset will change imgFrame
-        Mat regionOfInterest = imgFrame.submat(heightCutoff, imgFrame.height(), 0, imgFrame.width());
+        Mat regionOfInterest = imgFrame.submat(this.heightCutoff, imgFrame.height(), 0, imgFrame.width());
 
         // PHASE 4: Homographic Transform (TBD)
 
 
         // PHASE 5: Classification
         // Create and display pseudo colored image of all classes if stage to display is set to 1
+        int labeledImage[][];
         if(BB_Parameters.classifyByMultipleClasses == true) {
             if(BB_Parameters.classifyByGMM_NOT_FixedRange == true)
-                Filter_Utility.classifyImageIntoDataClasses(gmms, regionOfInterest, this.roadBinaryImage);
-            else
-                Filter_Utility.classifyImageIntoDataClasses(fixedRangeModels, regionOfInterest, this.roadBinaryImage, 1);
+            {
+                labeledImage = Filter_Utility.classifyImageIntoDataClasses(gmms, regionOfInterest, this.roadBinaryImage);
+                if(BB_Parameters.adaptive_outlier_elimination)
+                   labeledImage = Filter_Utility.adaptiveOutlierElimination(BB_Parameters.road_class_index, labeledImage, gmms,regionOfInterest,this.roadBinaryImage);
+            }
+            else {
+                labeledImage = Filter_Utility.classifyImageIntoDataClasses(fixedRangeModels, regionOfInterest, this.roadBinaryImage, 1);
+                if(BB_Parameters.adaptive_outlier_elimination)
+                    labeledImage = Filter_Utility.adaptiveOutlierElimination(BB_Parameters.road_class_index, labeledImage, fixedRangeModels,regionOfInterest,this.roadBinaryImage,1);
+            }
         }
         // ELSE Create the ONLY by road road binary image(this.roadBinaryImage)
         else {
-            if(BB_Parameters.classifyByGMM_NOT_FixedRange == true)
-                Filter_Utility.classifyImageIntoDataClass(gmms.elementAt(BB_Parameters.gmm_road_class_index), regionOfInterest, this.roadBinaryImage);
-            else
-                Filter_Utility.classifyImageIntoDataClass(fixedRangeModels.elementAt(BB_Parameters.gmm_road_class_index), regionOfInterest, this.roadBinaryImage);
+            if(BB_Parameters.classifyByGMM_NOT_FixedRange == true) {
+                labeledImage = Filter_Utility.classifyImageIntoDataClass(gmms.elementAt(BB_Parameters.road_class_index), regionOfInterest, this.roadBinaryImage, BB_Parameters.road_class_index);
+                if(BB_Parameters.adaptive_outlier_elimination)
+                    labeledImage = Filter_Utility.adaptiveOutlierElimination(BB_Parameters.road_class_index, labeledImage, gmms,regionOfInterest,this.roadBinaryImage);
+            }else {
+                labeledImage = Filter_Utility.classifyImageIntoDataClass(fixedRangeModels.elementAt(BB_Parameters.road_class_index), regionOfInterest, this.roadBinaryImage);
+                if(BB_Parameters.adaptive_outlier_elimination)
+                    labeledImage = Filter_Utility.adaptiveOutlierElimination(BB_Parameters.road_class_index, labeledImage, fixedRangeModels,regionOfInterest,this.roadBinaryImage, 1);
+            }
         }
+
+        // If pseudo creation parameter is true then create pseudo image
+        if(BB_Parameters.displaypseudoLabelImage)
+            if(BB_Parameters.classifyByGMM_NOT_FixedRange){
+                Filter_Utility.createPseudoImage(labeledImage, gmms, regionOfInterest);
+            }else {
+                Filter_Utility.createPseudoImage(labeledImage, fixedRangeModels, regionOfInterest, 1);
+            }
 
         // If stageToDisplay set to 2 then display the roadBinaryImage
         if (BB_Parameters.displayRoadBinaryImage == true) {
             if(BB_Parameters.classifyByGMM_NOT_FixedRange)
-                Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, gmms.elementAt(BB_Parameters.gmm_road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
+                Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, gmms.elementAt(BB_Parameters.road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
             else
-                Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, fixedRangeModels.elementAt(BB_Parameters.gmm_road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
+                Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, fixedRangeModels.elementAt(BB_Parameters.road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
         }
 
         // PHASE 6: Blob Detection
@@ -221,8 +252,8 @@ public class GlobalRF {
             this.Dilation(this.roadBinaryImage, BB_Parameters.dilation_value);
             this.Erosion(this.roadBinaryImage, BB_Parameters.erosion_Value);
             if(BB_Parameters.displayRoadDialateErode == true) {
-                Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, gmms.elementAt(BB_Parameters.gmm_road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
-                return;
+                Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, gmms.elementAt(BB_Parameters.road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
+                return "";
             }
         }
 
@@ -332,22 +363,22 @@ public class GlobalRF {
         //Imgproc.HoughLines(binaryContourImage, lines, BB_Parameters.houghRhoResolution_PercentRunningResolution_AccumulatorSpace, BB_Parameters.houghThetaResolution_AccumulatorSpace, BB_Parameters.houghMinNumVotes);
         //Imgproc.HoughLinesP(binaryContourImage, lines, BB_Parameters.houghRhoResolution_PercentRunningResolution_AccumulatorSpace, BB_Parameters.houghThetaResolution_AccumulatorSpace, BB_Parameters.houghMinNumVotes);
 
-        // WILL: MAKE THESE TWO GLOBAL FOR REUSE!!
-        Hough_Lines.ArrayData outputData = new Hough_Lines.ArrayData(BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution);
-        double[][] linesData;
-        Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh);
+        Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform);
         linesData = Hough_Lines.findLines(outputData, binaryContourImage.height(), binaryContourImage.width(), BB_Parameters.houghNumTopLines, BB_Parameters.houghMinNumVotes, BB_Parameters.houghNeighborhoodSize);
+
+        Point pt1 = new Point();
+        Point pt2 = new Point();
 
         // Draw lines on imgFrame
         for (int i = BB_Parameters.houghNumTopLines - 1; i >= 0; i--) {
+
             double[] currentLine = linesData[i];
             double rho = currentLine[1];
             double theta = currentLine[0];
             int numVotes = (int)currentLine[2];
             if(numVotes > 0) {
                 Log.i("Line", "Num:" + Integer.toString(i) + " rho:" + Double.toString(rho) + " theta" + Double.toString(theta));
-                Point pt1 = new Point();
-                Point pt2 = new Point();
+
 
                 double a = Math.cos(theta), b = Math.sin(theta);
                 double x0 = a * rho, y0 = b * rho;
@@ -356,9 +387,19 @@ public class GlobalRF {
                 pt2.x = Math.round(x0 - 1000 * (-b));
                 pt2.y = Math.round(y0 - 1000 * (a));
 
+                Core.clipLine(this.boundingRect, pt1, pt2); // clip the line to the region of interest
+
+                if(i == 0){
+                    lineFound = true;
+                    this.topLinePt1 = pt1;
+                    this.topLinePt2 = pt2;
+                }
+
                 if (BB_Parameters.displayHoughLines == true) {
-                    if (i == 0)
+                    if (i == 0) {
+                        lineFound = true;
                         Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 0, 255)); // pink
+                    }
                     else if (i == 1)
                         Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 0, 0)); // red
                     else if (i == 2)
@@ -373,10 +414,38 @@ public class GlobalRF {
             }
             //}
         }
+        if(lineFound) {
+            // Decide if need to go to the left or right
+            if (this.topLinePt1.y >= this.topLinePt2.y) {
+                if (this.topLinePt1.x >= BB_Parameters.leftOfCenterThreshold) {
+                    // we are too far left go to the right
+                    return "Lane Departure Warning: Merge Right";
+                } else if (this.topLinePt1.x < BB_Parameters.rightOfCenterThreshold) {
+                    // we are too far right go to the left
+                    return "Lane Departure Warning: Merge Left";
+                } else {
+                    // on good course
+                    return "On Course";
+                }
+            } else {
+                if (this.topLinePt2.x >= BB_Parameters.leftOfCenterThreshold) {
+                    // we are too far left go to the right
+                    return "Lane Departure Warning: Merge Right";
+                } else {
+                    if (this.topLinePt2.x < BB_Parameters.rightOfCenterThreshold) {
+                        // we are too far right go to the left
+                        return "Lane Departure Warning: Merge Left";
 
+                    } else {
+                        // on good course
+                        return "On Course";
+                    }
+                }
+            }
 
-
-
+        }else{
+            return "";
+        }
         /*
         // Other Idea: Take furthest right point of blob, then take all points with column within x
         // of the column value of that point and use to fit a line

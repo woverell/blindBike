@@ -92,6 +92,8 @@ public class CustomizeView extends JavaCameraView{
         }
         BB_Parameters.startingColumn  = BB_Parameters.runningResolution_width / 2;
 
+        BB_Parameters.leftOfCenterThreshold = BB_Parameters.runningResolution_width / 2 + BB_Parameters.leftOfCenterOffsetValue;
+        BB_Parameters.rightOfCenterThreshold = BB_Parameters.runningResolution_width / 2 + BB_Parameters.rightOfCenterOffsetValue;
 
         if(BB_Parameters.scaleFactor_height > 1.0 || BB_Parameters.scaleFactor_width > 1.0){
             Log.i("PARAMETERS", "Parameter scale factor greater than 1.0, meaning we are trying to increase resolution rather than decrease");

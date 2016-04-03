@@ -61,6 +61,14 @@
                 android:id="@+id/bearingTextView"
                 android:layout_gravity="right|top" />
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Direction"
+                android:id="@+id/directionsTextView"
+                android:layout_gravity="center_horizontal|bottom"
+                android:textColor="@color/RED" />
+
         </FrameLayout>
 
         <RelativeLayout

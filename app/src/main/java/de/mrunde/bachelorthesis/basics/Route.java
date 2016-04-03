@@ -1,6 +1,7 @@
 package de.mrunde.bachelorthesis.basics;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.json.JSONArray;
@@ -150,8 +151,11 @@ public class Route {
 		for (int i = 0; i < linkIndexes[0]; i++) {
 			firstDistance += distances[i];
 		}
+
+		GeoPoint[] tempShapePointArray = Arrays.copyOfRange(decisionPoints, shapePointIndexes[linkIndexes[0]], shapePointIndexes[linkIndexes[0]]);
+
 		RouteSegment firstSegment = new RouteSegment(null, firstDecisionPoint,
-				maneuvers[0], (int) firstDistance);
+				maneuvers[0], (int) firstDistance, tempShapePointArray);
 		this.segments.add(firstSegment);
 
 		// Create the rest of the route segments analog to the first segment
@@ -171,9 +175,11 @@ public class Route {
 				nextDistance = Math.round(nextDistance * 100) * 10;
 			}
 
+			tempShapePointArray = Arrays.copyOfRange(decisionPoints,shapePointIndexes[linkIndexes[i - 1]], shapePointIndexes[linkIndexes[i]]);
+
 			// Create the route segment
 			RouteSegment nextSegment = new RouteSegment(lastDecisionPoint,
-					nextDecisionPoint, maneuvers[i], (int) nextDistance);
+					nextDecisionPoint, maneuvers[i], (int) nextDistance, tempShapePointArray);
 			this.segments.add(nextSegment);
 		}
 	}

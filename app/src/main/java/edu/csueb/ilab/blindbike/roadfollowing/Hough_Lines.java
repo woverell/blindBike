@@ -6,9 +6,9 @@ import org.opencv.core.Mat;
  * Created by williamoverell on 2/27/16.
  */
 public class Hough_Lines {
-    public static void houghTransform(Mat inputData, ArrayData outputData,  int thetaAxisSize, int rAxisSize)
+    public static void houghTransform(Mat inputData, ArrayData outputData,  int thetaAxisSize, int rAxisSize, boolean ignoreEdges)
     {
-        houghTransformVerticalLines(inputData, outputData, thetaAxisSize,rAxisSize, 90, 90); // WILL: Think this is wrong, would process no lines not all lines
+        houghTransformVerticalLines(inputData, outputData, thetaAxisSize,rAxisSize, 90, 90, ignoreEdges); // WILL: Think this is wrong, would process no lines not all lines
     }
 
 
@@ -19,7 +19,7 @@ public class Hough_Lines {
      *      angled lines in cartesian coordinates)  and AGAIN for the range of theta2 to 180degrees (which translates from -theta1 angled lines to Vertical in
      *      cartesian coordinates)
      */
-    public static void houghTransformVerticalLines(Mat inputData, ArrayData outputData, int thetaAxisSize, int rAxisSize, float theta1, float theta2)
+    public static void houghTransformVerticalLines(Mat inputData, ArrayData outputData, int thetaAxisSize, int rAxisSize, float theta1, float theta2, boolean ignoreEdges)
     {
         int width = inputData.width();
         int height = inputData.height();
@@ -50,9 +50,18 @@ public class Hough_Lines {
 
         System.out.println("theta1Bin: " + theta1Bin + " theta2Bin: " +theta2Bin);
 
-        for (int y = height - 1; y >= 0; y--)
+        int rows, cols;
+        if(ignoreEdges){
+            rows = height - 5;
+            cols = width - 5;
+        }else{
+            rows = height - 1;
+            cols = width - 1;
+        }
+
+        for (int y = rows; y >= 0; y--)
         {
-            for (int x = width - 1; x >= 0; x--)
+            for (int x = cols; x >= 0; x--)
             {
                 if (inputData.get(y,x)[0] > 0) //point want to analyize OLD CODE: if (inputData.contrast(x, y, minContrast))
                 {

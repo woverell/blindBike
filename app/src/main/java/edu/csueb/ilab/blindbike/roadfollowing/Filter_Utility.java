@@ -28,7 +28,9 @@ public class Filter_Utility {
      * @param inputImg
      * @param outputImg
      */
-    static void classifyImageIntoDataClass(GMM gmm, Mat inputImg, Mat outputImg){
+    static int[][] classifyImageIntoDataClass(GMM gmm, Mat inputImg, Mat outputImg, int class_index){
+        int[][] classArray = new int[inputImg.rows()][inputImg.cols()];
+
         // Step 1: Cycle through every feature vector (each feature vector corresponds to a pixel)
         // and classify it using the gmm into either 0(not of that class) or 255(of that class)
         double[] sample = new double[BB_Parameters.featureVectorDimension];
@@ -42,14 +44,20 @@ public class Filter_Utility {
                 if((gmm.predict(sample)) >= 0){
                     // The pixel at this location belongs to this class
                     outputImg.put(i, j, 255);
+                    classArray[i][j] =class_index;
                 }else {
                     // The pixel at this location does not belong to this class
-                    outputImg.put(i,j, 0);
+
+                    outputImg.put(i, j, 0);
+                    classArray[i][j] = -1;
+
                 }
 
             }
 
         }
+
+        return classArray;
     }
 
     /**
@@ -75,9 +83,9 @@ public class Filter_Utility {
                 count_Classes[c] = 0;
 
 
-                imgHeight = img.rows();
-                imgWidth = img.cols();
-                classArray = new int[imgHeight][imgWidth];
+            imgHeight = img.rows();
+            imgWidth = img.cols();
+            classArray = new int[imgHeight][imgWidth];
 
             // Step 1: Cycle through every feature vector (each feature vector corresponds to a pixel)
             // and classify it using the GMMs, one GMM per data class (one gmm for sky, one for road, ...)
@@ -89,7 +97,7 @@ public class Filter_Utility {
             nextFeatureVector = img;
             for(int i = 0; i < nextFeatureVector.rows(); i++){
                 for(int j = 0; j < nextFeatureVector.cols(); j++){
-                    // WILLIAM: SWITCHING RGB TO BGR
+                    // WILLIAM: SWITCHING RGB TO BGR -- gmm uses order of b,g,r not the traditional r,g,b
                     sample[2] = nextFeatureVector.get(i, j)[0]; // R
                     sample[1] = nextFeatureVector.get(i, j)[1]; // G
                     sample[0] = nextFeatureVector.get(i, j)[2]; // B
@@ -134,10 +142,6 @@ public class Filter_Utility {
                 }
             }
 
-        // If pseudo creation parameter is true then create pseudo image
-        if(BB_Parameters.displaypseudoLabelImage)
-            createPseudoImage(classArray, gmms, img);
-
         return classArray;
     }
 
@@ -148,12 +152,18 @@ public class Filter_Utility {
      * @param inputImg
      * @param outputImg
      */
-    static void classifyImageIntoDataClass(ClassedMultipleFixedRangeModel fixedRangeModel, Mat inputImg, Mat outputImg){ }
+    static int[][] classifyImageIntoDataClass(ClassedMultipleFixedRangeModel fixedRangeModel, Mat inputImg, Mat outputImg) {
+
+        int[][] classArray = new int[inputImg.rows()][inputImg.cols()];
+
+        return classArray;
+
+    }
 
     /**
      * This method will classify the input images based on examining each pixel's feature vector
-     * into one of a set of gmms.  Creates array where each pixel is represented by the label of its
-     * classified data class.  This label can be found in the gmm class.
+     * into one of a set of fixed range models.  Creates array where each pixel is represented by the label of its
+     * classified data class.  This label can be found in the ClassedMultipleFixedRangeModel class.
      * If BB_Parameters.pseudo_Creation = ture replaces original pixel values with the pseudo color representing
      * the determined data class for that pixel.
      * @param fixedRangeModels
@@ -191,7 +201,7 @@ public class Filter_Utility {
                 float center[] = new float[3];
                 float best_center[] = {-1.0f, -1.0f, -1.0f};
 
-                // WILLIAM: SWITCHING RGB TO BGR, this is accurate I have tested
+                // WILLIAM: SWITCHING RGB TO BGR -- gmm uses order of b,g,r not the traditional r,g,b, this is accurate I have tested
                 sample[2] = nextFeatureVector.get(i, j)[0]; // R
                 sample[1] = nextFeatureVector.get(i, j)[1]; // G
                 sample[0] = nextFeatureVector.get(i, j)[2]; // B
@@ -251,9 +261,9 @@ public class Filter_Utility {
             }
         }
 
-        // If pseudo creation parameter is true then create pseudo image
+        /*// If pseudo creation parameter is true then create pseudo image
         if(BB_Parameters.displaypseudoLabelImage)
-            createPseudoImage(classArray, fixedRangeModels, img, 1);
+            createPseudoImage(classArray, fixedRangeModels, img, 1);*/
 
         return classArray;
 
@@ -413,15 +423,145 @@ public class Filter_Utility {
     }
 
     /**
-     * This method takes as input a matrix of same dimensions as original image
-     * that contains the class label of each pixel, the vector of GMMs, and
-     * a matrix to put the pseudo image.  The method uses the classArray values
-     * to modify the pixels in pseudoImage to represent the r,g,b,a value associated
-     * with that class.
-     * @param classArray
+     * Creates an adaptive model of the mean and standard deviations of the r,g,b values for the pixels in the labeled image
+     * that are labeled detect_class_index.  Using the mean and standard deviation we detect outliers as those being more than
+     * BB_Parameters.adaptive_std_dev_range_factor * std away from the mean.  For every outlier detected of the label detect_class_index
+     * we reclassify the pixel and update the returned labeled image as well as updating roadBinaryImage as appropriate.
+     * @param labeledImage
      * @param gmms
-     * @param pseudoImage
+     * @param originalImg
+     * @param roadBinaryImage
+     * @param detect_class_index
+     *
+     * @return
      */
+    static int[][] adaptiveOutlierElimination(int detect_class_index, int[][] labeledImage, Vector<GMM> gmms, Mat originalImg, Mat roadBinaryImage){
+        float meanR = 0f, meanG = 0f, meanB = 0f, stdR = 0f, stdG = 0f, stdB = 0f;
+        int counter = 0;
+        int count_Outliers=0;
+        double[] sample = new double[BB_Parameters.featureVectorDimension];
+        int[][] newLabeledImage;
+
+        newLabeledImage = new int[labeledImage.length][labeledImage[0].length];
+
+        // Calculate mean
+        for(int i = 0; i < labeledImage.length; i++) { // cycle through rows
+            for (int j = 0; j < labeledImage[0].length; j++) { // cycle through columns
+                if(labeledImage[i][j] == detect_class_index){
+                    // WILLIAM: CHECK RGB CORRECT
+                    meanR += originalImg.get(i, j)[0]; // R
+                    meanG += originalImg.get(i, j)[1]; // G
+                    meanB += originalImg.get(i, j)[2]; // B
+                    counter++;
+                }
+            }
+        }
+
+        meanR = ((float)meanR)/counter;
+        meanG = ((float)meanG)/counter;
+        meanB = ((float)meanB)/counter;
+
+       double x;
+        // Calculate std
+        for(int i = 0; i < labeledImage.length; i++) { // cycle through rows
+            for (int j = 0; j < labeledImage[0].length; j++) { // cycle through columns
+                if(labeledImage[i][j] == detect_class_index){
+                    // WILLIAM: CHECK RGB CORRECT
+                    x = originalImg.get(i,j)[0];
+
+                    stdR += (x - meanR)*(x - meanR); // R
+                    stdG += (originalImg.get(i, j)[1] - meanG)*(originalImg.get(i, j)[1] - meanG); // G
+                    stdB += (originalImg.get(i, j)[2] - meanB)*(originalImg.get(i, j)[2] - meanB); // B
+                }
+            }
+        }
+
+        stdR = (float)Math.sqrt(stdR / (counter - 1));
+        stdG = (float)Math.sqrt(stdG / (counter - 1));
+        stdB = (float)Math.sqrt(stdB / (counter - 1));
+
+        // Visit every pixel labeled class_index and test to see if it is an outlier
+        for(int i = 0; i < labeledImage.length; i++) { // cycle through rows
+            for (int j = 0; j < labeledImage[0].length; j++) { // cycle through columns
+                newLabeledImage[i][j] = labeledImage[i][j];
+                if (labeledImage[i][j] == detect_class_index) {
+                    if(  Math.abs(originalImg.get(i, j)[0] - meanR) > BB_Parameters.adaptive_std_dev_range_factor * stdR ||
+                            Math.abs(originalImg.get(i, j)[1] - meanG) > BB_Parameters.adaptive_std_dev_range_factor * stdG ||
+                            Math.abs(originalImg.get(i, j)[2] - meanB) > BB_Parameters.adaptive_std_dev_range_factor * stdB ){
+                        // outlier detected
+                        Log.v("Outlier", "At " + i + ", " + j + " = " + originalImg.get(i,j)[0] + "," + originalImg.get(i,j)[1] + ", " + originalImg.get(i,j)[2]);
+                        //START OF RECLASSIFICATION
+                        // Cycle through GMM list to figure out which class has the highest probability
+                        // AND IS NOT class_index
+                        double max = -10;
+                        int class_index = -1;
+                        double tmp;
+                        // WILLIAM: SWITCHING RGB TO BGR -- gmm uses order of b,g,r not the traditional r,g,b
+                        sample[2] = originalImg.get(i, j)[0]; // R
+                        sample[1] = originalImg.get(i, j)[1]; // G
+                        sample[0] = originalImg.get(i, j)[2]; // B
+
+                        for(int g = 0; g < gmms.size(); g++){
+                            if(g == detect_class_index) continue;
+                            if((tmp = gmms.elementAt(g).predict(sample)) > max && tmp >= 0.0){
+                                // This means it is class g at this point
+                                class_index = g;
+                                max = tmp;
+                            }
+
+                        }
+                        //END OF RECLASSIFICATION
+                        count_Outliers++;
+
+                        //SOme counting AND
+                        //create binary image of road/not road pixels for future processing
+                        if(class_index == -1 ) {
+                            roadBinaryImage.put(i, j, 0);
+                        }
+                        else {
+
+                            if (class_index == 1) //MEANS WE ALWAYS need to keep this meaning road
+                                roadBinaryImage.put(i, j, 255);
+                            else
+                                roadBinaryImage.put(i,j,0);
+                        }
+                        newLabeledImage[i][j] = class_index;
+
+
+                    }
+
+                }
+            }
+        }
+
+        Log.v("NumOutliers", Integer.toString(count_Outliers));
+        return newLabeledImage;
+    }
+
+
+    /**
+     *
+     * @param labeledImage
+     * @param fixedRangeModels
+     * @param originalImg
+     * @param roadBinaryImage
+     * @param ignore
+     * @return
+     */
+    static int[][] adaptiveOutlierElimination(int detect_class_index, int[][] labeledImage, Vector<ClassedMultipleFixedRangeModel> fixedRangeModels, Mat originalImg, Mat roadBinaryImage, int ignore){
+        return labeledImage;
+    }
+
+        /**
+         * This method takes as input a matrix of same dimensions as original image
+         * that contains the class label of each pixel, the vector of GMMs, and
+         * a matrix to put the pseudo image.  The method uses the classArray values
+         * to modify the pixels in pseudoImage to represent the r,g,b,a value associated
+         * with that class.
+         * @param classArray
+         * @param gmms
+         * @param pseudoImage
+         */
     static void createPseudoImage(int[][] classArray, Vector<GMM> gmms, Mat pseudoImage){
         int imgWidth = classArray.length;
         int imgHeight = classArray[1].length;

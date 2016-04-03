@@ -44,14 +44,16 @@ public class BB_Parameters {
     public static final int cutOff_Area_Of_Interest = 200;
 
     // Parameter to signify which is the index of the road class in our set of gmms
-    public static final int gmm_road_class_index = 1; // please look at file gmmFileForAllDataClasses.dat in assets for appropriate number
+    public static final int road_class_index = 1; // please look at file gmmFileForAllDataClasses.dat in assets for appropriate number
+    // also see class_models_with_fixed_ranges.xml for appropriate number AND THEY SHOULD BE THE SAME AND BE IN THE SECOND POSITION OF THE
+    // CLASS MODELS IN THE DATA FILES SO IT MAPS TO INDEX OF 1 IN THE VECTOR CONTAINING ALL THE CLASS MODELS
 
 
     // If test_mode true then we process on testImage rather than camera images
-    public static final boolean test_mode = true;
+    public static final boolean test_mode = false;
 
     // Image to use in test_mode
-    public static int testImage = R.drawable.si_7;
+    public static int testImage = R.drawable.roadtest6;
 
     // Parameter for Small Blob Elimination Step (Step 7.1)
     // Based on birds eye view geometry which we dont have 10 columns filling aprox 280 pixel high image would be 2800
@@ -63,11 +65,27 @@ public class BB_Parameters {
     // If false then classifies with one road class GMM
     public static final boolean classifyByMultipleClasses = true;
 
-    public static final boolean classifyByGMM_NOT_FixedRange = false;
+    /**
+     * true if classifying with GMM, false if classifying with fixed ranges
+      */
+    public static final boolean classifyByGMM_NOT_FixedRange = true;
+
+    /**
+     * if true we are invocing the adaptive outlier elimination module that
+     * re-classifies outlier road pixels based on the threshold of
+     * adaptive_std_dev_range_factor*stddev of road pixels in THAT image
+     * from the mean of the road pixels in THAT image
+     */
+    public static final boolean adaptive_outlier_elimination = true;
+
+    /**
+     * standard deviation
+     */
+    public static final float adaptive_std_dev_range_factor = 2.0f;
 
     // This is to create for display pseudo color labeled image
     // Either multiple classes or just road or non-road
-    public static final boolean displaypseudoLabelImage = true;
+    public static final boolean displaypseudoLabelImage = false;
 
     public static final boolean displayRoadBinaryImage = false;
 
@@ -77,7 +95,7 @@ public class BB_Parameters {
 
     public static final boolean displayTopTwoContours = false;
 
-    public static final boolean displayHoughLines = true;
+    public static final boolean displayHoughLines = false;
 
     public static final boolean displayBinaryContourImage = false;
 
@@ -98,11 +116,19 @@ public class BB_Parameters {
     public static final int houghNumTopLines = 10;
     public static final int houghNeighborhoodSize = 4;
 
+    public static final boolean ignoreEdgesInHoughTransform = true;
+
     // Line Selection Algorithm Parameters
     // Angle Range
     // Angle of 0 or 180 is vertical line
     public static final int lineSelectionAngleRangeLow = 45; // decrease this to narrow range (min 1)
     public static final int lineSelectionAngleRangeHigh = 135; // increase this to narrow range (max 179)
+
+    // Merge direction thresholds
+    public static int leftOfCenterThreshold;
+    public static final int leftOfCenterOffsetValue = 70;
+    public static int rightOfCenterThreshold;
+    public static final int rightOfCenterOffsetValue = -70;
 
 
     // Parameter for blob search area
