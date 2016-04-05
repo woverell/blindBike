@@ -240,11 +240,6 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private final int MAX_DISTANCE_TO_DECISION_POINT = 32;
 
 	/**
-	 * Maximum distance to a shape point when it is considered as reached
-	 */
-	private final int SHAPE_POINT_DISTANCE_THRESHOLD = 8;
-
-	/**
 	 * The current desired bearing based on shape points of the route
 	 * In compass degrees 0 to 360, 0 and 360 being north, 90 east
 	 * 180 south, 270 west
@@ -254,7 +249,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	/**
 	 * This stores the previous distance to the candidate shape point
 	 */
-	private double last_distance = 0;
+	private double last_distance_to_candidateSP = 0;
 
 	/**
 	 * This will be true when the current shape point is found
@@ -267,14 +262,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private boolean candidateSPFound = false;
 
 	/**
-	 * This stores the candidate shape point latitude
+	 * This stores the candidate shape point
 	 */
-	private double candidateCurrentSPLat;
-
-	/**
-	 * This stores the candidate shape point longitude
-	 */
-	private double candidateCurrentSPLng;
+	private GeoPoint candidateSP;
 
 	private boolean beenWithinNodeWindow = false;
 
@@ -934,9 +924,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		obstacleAvoidance.processFrame(mRgba);
 
 		// CALL ROAD FOLLOWING(William)
-		this.directionsText = globalRF.processFrame(mRgba);
-
-		this.directionsTextView.setText(this.directionsText);
+		// and update the directions to be given to the user
+		this.directionsText = globalRF.processFrame(mRgba, this.desiredBearing);
 
 		return mRgba;
 	}
@@ -978,6 +967,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	public void onLocationChanged(Location location) {
 		debugger += "onLocationChanged() called...\n";
 
+		// set the lat and lng from the gps new location
 		double lat = location.getLatitude();
 		double lng = location.getLongitude();
 
@@ -987,49 +977,15 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// Check if the instruction manager has been initialized already
 		if (im != null) {
 
-			// If the candidate shape point hasn't been found yet
-			// This code is going through the shape points and finding the closest shape point to the user
-			// However this is not necessarily the current SP, if you are closest to the next shape point
-			// rather than the current one we need to account for that, see if(!this.currentSPFound) block
-			// which corrects for this
+			this.directionsTextView.setText(this.directionsText); // update the display of the instruction to the user
+
+			// If the candidate shape point hasn't been found yet, the candidate SP is the closest shape point
+			// to the current location of the user
+			// However this is not necessarily the current SP, if you are closest to the next shape point (the one the user is
+			// traveling towards) rather than the shape point just passed we need to account for that,
+			// see if(!this.currentSPFound) block, which sets the correct currentSP and nextSP
 			if (!this.candidateSPFound) {
-				// Get the coordinates of the current shape point
-				double currentSPLat = im.getCurrentSP().getLatitude();
-				double currentSPLng = im.getCurrentSP().getLongitude();
-
-				// Get the coordinates of the next shape point
-				double nextSPLat = im.getNextSP().getLatitude();
-				double nextSPLng = im.getNextSP().getLongitude();
-
-				float[] distanceResultsA = new float[1], distanceResultsB = new float[1];
-
-				// Set the temp_distance_diff, which will be negative if the next shape point
-				// is closer to the user than the current shape point
-				Location.distanceBetween(lat, lng, currentSPLat, currentSPLng, distanceResultsA);
-				Location.distanceBetween(lat, lng, nextSPLat, nextSPLng, distanceResultsB);
-				float temp_distance_diff = distanceResultsB[0] - distanceResultsA[0];
-
-				// loop through until at next closest shape point
-				while (temp_distance_diff <= 0) {
-					// go ahead to the next shape point
-					im.goToNextSP();
-
-					// update the current and next shape points
-					currentSPLat = nextSPLat;
-					currentSPLng = nextSPLng;
-					nextSPLat = im.getNextSP().getLatitude();
-					nextSPLng = im.getNextSP().getLongitude();
-
-					// calc the distance from user to current and next sp
-					Location.distanceBetween(lat, lng, currentSPLat, currentSPLng, distanceResultsA);
-					Location.distanceBetween(lat, lng, nextSPLat, nextSPLng, distanceResultsB);
-
-					// store the distance difference
-					temp_distance_diff = distanceResultsB[0] - distanceResultsA[0];
-				}
-
-				this.candidateCurrentSPLat = currentSPLat;
-				this.candidateCurrentSPLng = currentSPLng;
+				this.candidateSP = im.goToClosestSP(lat, lng);
 				this.candidateSPFound = true;
 			}
 
@@ -1037,15 +993,15 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			// What this code is doing is testing whether we are heading towards the candidate or away from the candidate
 			// If we are approaching the candidate then set the previous shape point as currentSP and the candidate as the
 			// nextSP, if we are leaving the candidate then set the candidate as currentSP and the next SP as nextSP
-			if(!this.currentSPFound){
+			if(!this.currentSPFound && this.candidateSPFound){
 				float[] distanceResults = new float[1];
-				Location.distanceBetween(lat, lng, this.candidateCurrentSPLat, this.candidateCurrentSPLng, distanceResults);
+				Location.distanceBetween(lat, lng, this.candidateSP.getLatitude(), this.candidateSP.getLongitude(), distanceResults);
 
 
 				// If this is not our first time testing this candidate
-				if (this.last_distance >= 0) {
+				if (this.last_distance_to_candidateSP >= 0) {
 					// if our current distance to the candidate is greater than it was last location update
-					if (distanceResults[0] > this.last_distance) {
+					if (distanceResults[0] > this.last_distance_to_candidateSP) {
 						// then this candidate is our current shape point, so we have found the current SP
 						this.currentSPFound = true;
 					} else {
@@ -1055,9 +1011,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 					}
 				}
 
-				this.last_distance = distanceResults[0];
+				this.last_distance_to_candidateSP = distanceResults[0];
 
-			} else { // Otherwise we know the current shape point
+			// Otherwise we know the current shape point, so now just check and see if we are within
+			// BB_Parameters.SHAPE_POINT_DISTANCE_THRESHOLD of the next shape point, if we are then update the currentSP
+			// and nextSP
+			} else if(this.currentSPFound) {
 				double currentSPLat, currentSPLng, nextSPLat, nextSPLng;
 
 				// Calculate the distance to the next shape point
@@ -1065,11 +1024,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				Location.distanceBetween(lat, lng, im.getNextSP().getLatitude(), im.getNextSP().getLongitude(), distanceResults);
 
 				// Shift to next shape point if within threshold of current shape point
-				// or if next shape point is closer than the current shape point (this
-				// should never happen unless we have gotten past the current shape point)
+				// or if next shape point is closer than the current sape point (this
+				// should never happen unless we have gotten past theh current shape point)
 
 				if(im.hasShapePointsLeft()){
-					if (distanceResults[0] < SHAPE_POINT_DISTANCE_THRESHOLD) {
+					if (distanceResults[0] < BB_Parameters.SHAPE_POINT_DISTANCE_THRESHOLD) {
 
 						im.goToNextSP(); // shift to the next shape point
 

@@ -7,6 +7,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.location.Location;
 import android.util.Log;
 
 import com.mapquest.android.maps.GeoPoint;
@@ -175,16 +176,6 @@ public class InstructionManager {
 					"Error while parsing JSONObject to initialize the landmarks.");
 			this.importSuccessful = false;
 		}
-
-		// Log the landmarks
-		for (int i = 0; i < this.localLandmarks.size(); i++) {
-			Log.v("InstructionManager.initLandmarks", "Local Landmark " + i
-					+ ": " + this.localLandmarks.get(i).toString());
-		}
-		for (int i = 0; i < this.globalLandmarks.size(); i++) {
-			Log.v("InstructionManager.initLandmarks", "Global Landmark " + i
-					+ ": " + this.globalLandmarks.get(i).toString());
-		}
 	}
 
 	/**
@@ -223,12 +214,6 @@ public class InstructionManager {
 					"Error while parsing JSONArray to initialize the street furniture.");
 			this.importSuccessful = false;
 		}
-
-		// Log the street furniture
-		for (int i = 0; i < this.streetFurniture.size(); i++) {
-			Log.v("InstructionManager.initStreetFurniture", "Street furniture "
-					+ i + ": " + this.streetFurniture.get(i).toString());
-		}
 	}
 
 	/**
@@ -250,12 +235,6 @@ public class InstructionManager {
 			Log.e("InstructionManager",
 					"Error while parsing JSONArray to initialize the intersections.");
 			this.importSuccessful = false;
-		}
-
-		// Log the intersections
-		for (int i = 0; i < this.intersections.size(); i++) {
-			Log.v("InstructionManager.initIntersections", "Intersection " + i
-					+ ": " + this.intersections.get(i).toString());
 		}
 	}
 
@@ -410,35 +389,12 @@ public class InstructionManager {
 									.equals(((LandmarkInstruction) instruction[1])
 											.getLocal()))) {
 						this.instructions.add(instruction[0]);
-						// Log global instruction
-						Log.v("InstructionManager.createInstructions",
-								"(Global) Instruction "
-										+ j
-										+ ": "
-										+ this.instructions.get(j).toString()
-										+ " | "
-										+ this.instructions.get(j)
-												.getDecisionPoint().toString());
 						j++;
 					}
 				}
 				// Remove "no-turn" instructions by ignoring them
 				if (instruction[1].toString() != null) {
 					this.instructions.add(instruction[1]);
-					// Log local instruction
-					Log.v("InstructionManager.createInstructions",
-							"(Local) Instruction "
-									+ j
-									+ ": "
-									+ this.instructions.get(j).toString()
-									+ " | Maneuver Type: "
-									+ this.instructions.get(j)
-											.getManeuverType()
-									+ " | "
-									+ this.instructions.get(j)
-											.getDecisionPoint().toString()
-									+ " | Instruction Type: "
-									+ this.instructions.get(j).getClass());
 					j++;
 				}
 			}
@@ -568,6 +524,50 @@ public class InstructionManager {
 			return true;
 		else
 			return false;
+	}
+
+	/**
+	 * This method will set the current shape point to the first closest shape point in the route
+	 * to the passed lat/long and then return that shape point
+	 * @return GeoPoint of the updated current shape point
+	 */
+	public GeoPoint goToClosestSP(double lat, double lng){
+		// Get the coordinates of the current shape point
+		double currentSPLat = this.getCurrentSP().getLatitude();
+		double currentSPLng = this.getCurrentSP().getLongitude();
+
+		// Get the coordinates of the next shape point
+		double nextSPLat = this.getNextSP().getLatitude();
+		double nextSPLng = this.getNextSP().getLongitude();
+
+		float[] distanceResultsA = new float[1], distanceResultsB = new float[1];
+
+		// Set the temp_distance_diff, which will be negative if the next shape point
+		// is closer to the user than the current shape point
+		Location.distanceBetween(lat, lng, currentSPLat, currentSPLng, distanceResultsA);
+		Location.distanceBetween(lat, lng, nextSPLat, nextSPLng, distanceResultsB);
+		float temp_distance_diff = distanceResultsB[0] - distanceResultsA[0];
+
+		// loop through until at next closest shape point
+		while (temp_distance_diff <= 0) {
+			// go ahead to the next shape point
+			this.goToNextSP();
+
+			// update the current and next shape points
+			currentSPLat = nextSPLat;
+			currentSPLng = nextSPLng;
+			nextSPLat = this.getNextSP().getLatitude();
+			nextSPLng = this.getNextSP().getLongitude();
+
+			// calc the distance from user to current and next sp
+			Location.distanceBetween(lat, lng, currentSPLat, currentSPLng, distanceResultsA);
+			Location.distanceBetween(lat, lng, nextSPLat, nextSPLng, distanceResultsB);
+
+			// store the distance difference
+			temp_distance_diff = distanceResultsB[0] - distanceResultsA[0];
+		}
+
+		return this.getCurrentSP();
 	}
 
 	/**

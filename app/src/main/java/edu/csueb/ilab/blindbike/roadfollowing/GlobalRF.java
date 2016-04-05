@@ -182,7 +182,7 @@ public class GlobalRF {
      *
      * @param imgFrame
      */
-    public String processFrame(Mat imgFrame) {
+    public String processFrame(Mat imgFrame, double desiredBearing) {
         boolean lineFound = false;
 
         // if the image is empty then don't process anything or if stage to display is original image
