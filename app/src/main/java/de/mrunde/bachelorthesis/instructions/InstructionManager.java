@@ -3,6 +3,7 @@ package de.mrunde.bachelorthesis.instructions;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.http.HttpEntity;
@@ -109,6 +110,12 @@ public class InstructionManager {
 	 */
 	private List<GeoPoint> intersections;
 
+
+	/**
+	 	 * Index of current shape point in the navigation
+	 	 */
+	private int currentShapePointIndex = 0;
+
 	private double lat,lng,altitude_final=0;
 	public double tllat,ltlong;
 	ArrayList<Traffic_light_Data> tld_array_list;
@@ -140,6 +147,26 @@ public class InstructionManager {
 
 		// Initialize the intersections
 		initIntersections(intersections);
+	}
+
+	//Created to make a copy of the Segments ArrayList and to
+	//use it in NaviActivity
+
+	/*public List<RouteSegment> getSegments(){
+		int size=this.route.returnSegments().size();
+		List<RouteSegment> segmentscopy = new ArrayList<RouteSegment>(this.route.returnSegments());
+		return segmentscopy;
+	}*/
+
+	// Returns the List of Route Segments with
+	public List<RouteSegment> getSegments(){
+		return this.route.returnSegments();
+	}
+
+	public GeoPoint[] getDecisionPoints(){
+		int size=this.route.getDecisionPoint().length;
+		GeoPoint[] decisionPoints = this.route.getDecisionPoint();
+		return decisionPoints;
 	}
 
 	/**
@@ -692,6 +719,7 @@ public class InstructionManager {
 		}
 	}
 
+
 	/**
 	 * Search for a global landmark along the route between the two given
 	 * locations. The index of the current decision point in the shape points
@@ -1119,60 +1147,51 @@ public class InstructionManager {
 		}
 	}
 
-	/*private class RetrieveData extends AsyncTask<String, Void, String>{
+	/**
+	 	 * Returns true if there are more shape points in the route
+	 	 * Returns false if there are no more shape points in the route
+	 	 * @return
+	 	 */
+		public boolean hasShapePointsLeft(){
+				if(this.currentShapePointIndex < this.route.numShapePoints())
+						return true;
+				else
+					return false;
+			}
+	//Add a comment to this line
 
-		double result= Double.NaN;
-		@Override
-		protected String doInBackground(String... params) {
+				/**
+	 	 * returns the shape point the user passed most recently, the last one passed
+	 	 * @return
+	 	 */
+		public GeoPoint getCurrentSP(){
+			return this.route.getShapePoint(this.currentShapePointIndex);
+			}
 
-			HttpClient httpClient = new DefaultHttpClient();
-			HttpContext localContext = new BasicHttpContext();
-			String url="http://maps.googleapis.com/maps/api/elevation/"
-					+ "xml?locations=" + String.valueOf(lat) + "," + String.valueOf(lng)+
-					"&sensor=true";
+				/**
+	 	 * Returns the shape point the user is heading to now, the next one to pass through
+	 	 * @return
+	 	 */
+		public GeoPoint getNextSP(){
+			return this.route.getShapePoint(this.currentShapePointIndex + 1);
+		}
 
-			HttpGet httpGet = new HttpGet(url);
-			StringBuilder json = new StringBuilder();
-			try
-			{
-				HttpResponse response = httpClient.execute(httpGet,localContext);
-				HttpEntity entity = response.getEntity();
+				/**
+	 	 * Shifts the current shape point index to indicate that we are now on the next shape point
+	 	 * This means we have passed through a shape point.
+	 	 */
+		public void goToNextSP(){
+			if(this.currentShapePointIndex + 1 <= this.route.numShapePoints())
+					this.currentShapePointIndex++;
+		}
 
-				if(entity !=null)
-				{
-					InputStream inputStream=entity.getContent();
-					int r=-1;
-					while ((r=inputStream.read())!= -1)
-					{
-						json.append((char) r);
-					}
-					String tagOpen = "<elevation>";
-					String tagClose = "</elevation>";
-
-					if(json.indexOf(tagOpen)!= -1)
-					{
-						int start = json.indexOf(tagOpen) + tagOpen.length();
-						int end = json.indexOf(tagClose);
-						String value= json.substring(start,end);
-						result = (double)(Double.parseDouble(value));
-						altitude_final=result;
-						Log.i("TAG: Elevation",Double.toString(lat) +"," + Double.toString(lng) + " =" + Double.toString(altitude_final));
-					}
-					inputStream.close();
+				/**
+	 	 * Shifts the current shape point index to indicate we are at the previous shape point
+	 	 */
+		public void goToPreviousSP() {
+			if (this.currentShapePointIndex - 1 >= 0) {
+				this.currentShapePointIndex--;
 				}
-			}
-			catch(IOException ie)
-			{
-				ie.printStackTrace();
-			}
-			return String.valueOf(result);
 		}
-
-		@Override
-		protected void onPostExecute(String message) {
-			altitude_final=result;
-		}
-
-	}*/
 }
 

@@ -1,6 +1,7 @@
 package de.mrunde.bachelorthesis.basics;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.json.JSONArray;
@@ -39,12 +40,16 @@ public class Route {
 	 */
 	private GeoPoint[] shapePoints;
 
+
 	/**
 	 * Constructor of the Route class
 	 * 
 	 * @param json
 	 *            Guidance object returned by the MapQuest API
 	 */
+	public GeoPoint[] retDecisionPoints;
+
+
 	public Route(JSONObject json) {
 		// Some temporal variables
 		int[] maneuvers;
@@ -52,6 +57,8 @@ public class Route {
 		GeoPoint[] decisionPoints;
 		double[] distances;
 		int[] shapePointIndexes;
+		// to house the heights for each shape Point
+		double elevation[];
 
 		// Extract the guidance information out of the raw JSON file
 		try {
@@ -85,11 +92,16 @@ public class Route {
 			decisionPoints = new GeoPoint[shapePoints.length() / 2];
 			int j = 0;
 			for (int i = 0; i < shapePoints.length() - 1; i += 2) {
-				decisionPoints[j] = new GeoPoint(shapePoints.getDouble(i),
-						(Double) shapePoints.get(i + 1));
+				decisionPoints[j] = new GeoPoint(shapePoints.getDouble(i),(Double) shapePoints.get(i + 1));
 				j++;
 			}
 
+			//making a dummy copy of decisionPoints[] to send to NaviActivity
+			retDecisionPoints = new GeoPoint[shapePoints.length()/2];
+			for (int i = 0; i < decisionPoints.length; i++) {
+				retDecisionPoints[i] = decisionPoints[i];
+
+			}
 			// --- Get the distances and shape point indexes ---
 			JSONArray guidanceLinkCollection = guidance
 					.getJSONArray("GuidanceLinkCollection");
@@ -123,6 +135,9 @@ public class Route {
 		}
 	}
 
+	public GeoPoint[] getDecisionPoint(){
+		return this.retDecisionPoints;
+	}
 	/**
 	 * Create the route segments out of the complete route information
 	 * 
@@ -150,8 +165,10 @@ public class Route {
 		for (int i = 0; i < linkIndexes[0]; i++) {
 			firstDistance += distances[i];
 		}
+
+		GeoPoint[] tempShapePointArray = Arrays.copyOfRange(decisionPoints, shapePointIndexes[linkIndexes[0]], shapePointIndexes[linkIndexes[0]]);
 		RouteSegment firstSegment = new RouteSegment(null, firstDecisionPoint,
-				maneuvers[0], (int) firstDistance);
+				maneuvers[0], (int) firstDistance, tempShapePointArray);
 		this.segments.add(firstSegment);
 
 		// Create the rest of the route segments analog to the first segment
@@ -171,13 +188,16 @@ public class Route {
 				nextDistance = Math.round(nextDistance * 100) * 10;
 			}
 
+			tempShapePointArray = Arrays.copyOfRange(decisionPoints,shapePointIndexes[linkIndexes[i - 1]], shapePointIndexes[linkIndexes[i]]);
 			// Create the route segment
-			RouteSegment nextSegment = new RouteSegment(lastDecisionPoint,
-					nextDecisionPoint, maneuvers[i], (int) nextDistance);
+			RouteSegment nextSegment = new RouteSegment(lastDecisionPoint,nextDecisionPoint, maneuvers[i], (int) nextDistance, tempShapePointArray);
 			this.segments.add(nextSegment);
 		}
 	}
 
+	public List<RouteSegment> returnSegments(){
+		return this.segments;
+	}
 	/**
 	 * @return Check if the JSON import has been successful
 	 */
@@ -217,5 +237,11 @@ public class Route {
 	 */
 	public GeoPoint[] getShapePoints() {
 		return this.shapePoints;
+	}
+
+	public int numShapePoints(){return this.shapePoints.length;}
+
+	public GeoPoint getShapePoint(int index){
+		return this.shapePoints[index];
 	}
 }

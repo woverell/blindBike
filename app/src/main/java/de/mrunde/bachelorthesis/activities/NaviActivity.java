@@ -32,6 +32,7 @@ import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Point;
 import org.opencv.core.Range;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
@@ -83,7 +84,9 @@ import com.mapquest.android.maps.MyLocationOverlay;
 import com.mapquest.android.maps.OverlayItem;
 import com.mapquest.android.maps.RouteManager;
 
+import de.mrunde.bachelorthesis.basics.RouteSegment;
 import de.mrunde.bachelorthesis.instructions.DistanceInstruction;
+import de.mrunde.bachelorthesis.instructions.ShapePointManager;
 import edu.csueb.ilab.blindbike.blindbike.CustomizeView;
 import edu.csueb.ilab.blindbike.blindbike.EntranceActivity;
 import edu.csueb.ilab.blindbike.blindbike.R;
@@ -304,6 +307,38 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 	//Array List to hold tld_obj object which hold lat and lng for next intersection
 	ArrayList<Traffic_light_Data> tld_array_list;
+
+	/**
+	 	 * Shape point manager to store and manage shape points
+	 	 */
+	private ShapePointManager spm;
+
+	/**
+	 	 * Maximum distance to a shape point when it is considered as reached
+	 	 */
+		private final int SHAPE_POINT_DISTANCE_THRESHOLD = 15;
+
+				/**
+	 	 * The current desired bearing based on shape points of the route
+	 	 * In compass degrees 0 to 360, 0 and 360 being north, 90 east
+	 	 * 180 south, 270 west
+	 	 */
+
+		private double last_distance = 0;
+		private boolean currentSPNotFound = true;
+		private boolean candidateSPNotFound = true;
+		private double candidateCurrentSPLat;
+		private double candidateCurrentSPLng;
+
+	//List<RouteSegment> is to house all the segments extracted
+	List<RouteSegment> routeSegments;
+	//To be used for testing the bounding box values
+	private double test[][];
+
+	//The elevation array with index equal to shape point array
+	double elevation[];
+	// The distance between the points
+	double distance[];
 
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
 		@Override
@@ -743,6 +778,19 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				JSONObject result = new JSONObject(output);
 
 				result_elevation = new JSONObject(output1);
+				if(result_elevation.length()!=0)
+				{
+
+					JSONArray elevationCollection = result_elevation.getJSONArray("elevationProfile");
+					elevation = new double[elevationCollection.length()];
+					distance = new double[elevationCollection.length()];
+					for(int i = 0; i < elevationCollection.length(); i++){
+						elevation[i] = elevationCollection.getJSONObject(i).getDouble("height");
+						distance[i] = elevationCollection.getJSONObject(i).getDouble("distance");
+					}
+					//Log.i("CHRIS:","Done for Debug");
+				}
+
 					return result;
 			} catch (JSONException e) {
 				Log.e("GetJsonTask",
@@ -848,6 +896,13 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 					getResources().getString(R.string.jsonImportNotSuccessful),
 					Toast.LENGTH_SHORT).show();
 			// Finish the activity to return to MainActivity
+			finish();
+		}
+
+		//create shape point manager
+		spm =new ShapePointManager(guidance);
+		if(!spm.isImportSuccessful()){
+			Toast.makeText(this,getResources().getString(R.string.jsonImportNotSuccessful),Toast.LENGTH_SHORT).show();
 			finish();
 		}
 	}
@@ -1058,6 +1113,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
+		tts.shutdown();
 		if (mOpenCvCameraView != null)
 			mOpenCvCameraView.disableView();
 	}
@@ -1072,6 +1128,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		mBlobColorHsv = new Scalar(255);
 		SPECTRUM_SIZE = new Size(200, 64);
 		CONTOUR_COLOR = new Scalar(255,0,0,255);
+		test=new double[100][3];
+
 	}
 	double d;
 	public double Calculate_rows()
@@ -1096,11 +1154,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			d=3010;
 		//values: for d = 100 steps for 30 mts; 67 steps for 20 mts; 33 steps for 10 mts
 		if(d<=3000 && d>=900) {
-			d=3000;
-			if(d==1903)
-				d=1900;
-			if(d==1899)
-				d=1900;
+			// debug with set distance
+			//d=1174; try 1182
+			//d=1100;
+			if(d==1903)	d=1900;
+			if(d==1899)	d=1900;
 
 			Tmin = (float) Math.toDegrees(Math.atan((r_min - b) / d));
 			sc_min = f * (Math.tan(Tmin));
@@ -1138,6 +1196,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		mRgba.release();
 	}
 
+	int testi=0;
 	public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 	//	mRgba = inputFrame.rgba();
 		// Step 1: Downsize Image???
@@ -1261,10 +1320,23 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		else
 			row_end=(int)max_row_bound;
 
-	//	if(row_start>=350 && row_start<=360)
-	//		row_start=350;
+
 	//	Mat cropped_rect=mRgbabright.submat(row_start,row_end,100,700);//row_start,row_end,col_start,col_end
-		Mat cropped_rect=mRgbabright.submat(row_start,row_end,100,700);//row_start,row_end,col_start,col_end
+		//This switching of variables will create an error in submat function.
+		//Hence to avoid the error we do swapping of the values.
+		if(row_start>row_end)
+		{
+			row_start =row_start+row_end;
+			row_end = row_start - row_end;
+			row_start= row_start - row_end;
+		}
+
+		Mat cropped_rect=mRgbabright.submat(row_start,row_end,50,950);//row_start,row_end,col_start,col_end
+
+		//Adding a rectangle to the JavaSurfaceView to see if the box moves as expected
+		Core.rectangle(mRgbabright,new Point(50,min_row_bound),new Point(950,max_row_bound),new Scalar(255,0,0));
+
+		//Converting to HSV
 		Imgproc.cvtColor(cropped_rect, touchedRegionHsv, Imgproc.COLOR_BGR2HSV_FULL); //COLOR_RGB2HSV_FULL
 		//touchedRegionHsv.copyTo(cropped_rect_low);
 		// Calculate average color of touched region
@@ -1286,9 +1358,17 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	//	mIsColorSelected = true;
 
 		//touchedRegionRgba.release();
+
+
 		touchedRegionHsv.release();
 
 		if (mIsColorSelected) {
+
+			//Logging d, row_end and row_start values
+			//test[testi][0] = d;
+			//test[testi][1] = row_start;
+			//test[testi][2] = row_end;
+
 			mDetector.process(cropped_rect);
 			List<MatOfPoint> contours = mDetector.getContours();
 			Log.e(TAG, "Contours count: " + contours.size());
@@ -1301,6 +1381,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			mSpectrum.copyTo(spectrumLabel);
 			//Update the instructions to show red and Green lights on the TV instruction
 			displayTLInstruction();
+			//testi++;
 		}
 
 		return mRgbabright;
@@ -1366,7 +1447,6 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	public void onLocationChanged(Location location) {
 		debugger += "onLocationChanged() called...\n";
 
-
 		double lat = location.getLatitude();
 		double lng = location.getLongitude();
 
@@ -1374,75 +1454,188 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		str_currentLocation = EntranceActivity.stringifyCoords(lat, lng);
 
 		// Check if the instruction manager has been initialized already
+
 		if (im != null) {
-			// Get the coordinates of the next decision point
-			double dp1Lat = im.getCurrentInstruction().getDecisionPoint()
-					.getLatitude();
-			double dp1Lng = im.getCurrentInstruction().getDecisionPoint()
-					.getLongitude();
 
-			double dp2Lat = 0;
-			double dp2Lng = 0;
-			if (im.isOnLastInstruction()) {
-				// WILLIAM: I don't know right now
-				dp2Lat = dp1Lat;
-				dp2Lng = dp1Lng;
-				//return;
-			} else {
+			// If the candidate shape point hasn't been found yet
+			//Chris: Runs only the first time
+			// THis is to set the Current and next Shape points for the first time
+			if (this.candidateSPNotFound) {
+				// Get the coordinates of the current shape point
+				double currentSPLat = im.getCurrentSP().getLatitude();
+				double currentSPLng = im.getCurrentSP().getLongitude();
+
+				// Get the coordinates of the next shape point
+				double nextSPLat = im.getNextSP().getLatitude();
+				double nextSPLng = im.getNextSP().getLongitude();
+
+				float[] distanceResultsA = new float[1], distanceResultsB = new float[1];
+
+				Location.distanceBetween(lat, lng, currentSPLat, currentSPLng, distanceResultsA);
+				Location.distanceBetween(lat, lng, nextSPLat, nextSPLng, distanceResultsB);
+				float temp_distance_diff = distanceResultsB[0] - distanceResultsA[0];
+
+				//Get the segments
+				routeSegments = im.getSegments();
+				// loop through until at next closest shape point
+				while (temp_distance_diff <= 0) {
+					// go ahead to the next shape point
+					im.goToNextSP();
+
+					// update the current and next shape points
+					currentSPLat = nextSPLat;
+					currentSPLng = nextSPLng;
+					nextSPLat = im.getNextSP().getLatitude();
+					nextSPLng = im.getNextSP().getLongitude();
+
+					// calc the distance from user to current and next sp
+					Location.distanceBetween(lat, lng, currentSPLat, currentSPLng, distanceResultsA);
+					Location.distanceBetween(lat, lng, nextSPLat, nextSPLng, distanceResultsB);
+
+					// store the distance difference
+					temp_distance_diff = distanceResultsB[0] - distanceResultsA[0];
+				}
+
+				this.candidateCurrentSPLat = currentSPLat;
+				this.candidateCurrentSPLng = currentSPLng;
+				this.candidateSPNotFound = false;
+			}
+
+			//Chris: Runs only the first time
+			// If the current shape point hasn't been found yet
+			if (this.currentSPNotFound) {
+				float[] distanceResults = new float[1];
+				Location.distanceBetween(lat, lng, this.candidateCurrentSPLat, this.candidateCurrentSPLng, distanceResults);
+
+
+				// If this is not our first time testing this candidate
+				if (this.last_distance >= 0) {
+					// if our current distance to the candidate is greater than it was last location update
+					if (distanceResults[0] > this.last_distance) {
+						// then this candidate is our current shape point, so we have found the current SP
+						this.currentSPNotFound = false;
+					} else {
+						// otherwise the previous candidate was our current shape point and we found the current SP
+						im.goToPreviousSP();
+						this.currentSPNotFound = false;
+					}
+				}
+
+				this.last_distance = distanceResults[0];
+
+			} else { // Otherwise we know the current shape point
+				double currentSPLat, currentSPLng, nextSPLat, nextSPLng;
+
+
+				// Calculate the distance to the next shape point
+				float[] distanceResults = new float[1];
+				Location.distanceBetween(lat, lng, im.getNextSP().getLatitude(), im.getNextSP().getLongitude(), distanceResults);
+
+				// Shift to next shape point if within threshold of current shape point
+				// or if next shape point is closer than the current shape point (this
+				// should never happen unless we have gotten past the current shape point)
+
+				//CHRIS:: We should do our coding for finding 10 points before intersection
+				//here and then count down while approaching the intersection lat lng.
+
+				//Create a copy of the segments that were created in the Route File
+				//List<RouteSegment> segmentscopy = new ArrayList<RouteSegment>();
+				//segmentscopy =im.getSegments();
+				//spm.getSegmentswithShapePoints(im.getCurrentSP().getLatitude(),im.getCurrentSP().getLongitude(),segmentscopy,im.getDecisionPoints());
+
+				im.getShapePoints();
+				// Always runs untill no shape points are left
+				if (im.hasShapePointsLeft()) {
+					if (distanceResults[0] < SHAPE_POINT_DISTANCE_THRESHOLD) {
+
+						im.goToNextSP(); // shift to the next shape point
+
+						// update the lat and long
+						currentSPLat = im.getCurrentSP().getLatitude();
+						currentSPLng = im.getCurrentSP().getLongitude();
+						nextSPLat = im.getNextSP().getLatitude();
+						nextSPLng = im.getNextSP().getLongitude();
+
+						// bearing calculation
+						double X = Math.cos(nextSPLat) * Math.sin(nextSPLng - currentSPLng);
+						double Y = (Math.cos(currentSPLat) * Math.sin(nextSPLat)) - (Math.sin(currentSPLat) * Math.cos(nextSPLat) * Math.cos(nextSPLng - currentSPLng));
+
+
+					}
+				}
+					// if no shape points left set bearing to -1 to signify no bearing available
+
+			}
+			// Check if the instruction manager has been initialized already
+
+				// Get the coordinates of the next decision point
+				double dp1Lat = im.getCurrentInstruction().getDecisionPoint()
+						.getLatitude();
+				double dp1Lng = im.getCurrentInstruction().getDecisionPoint()
+						.getLongitude();
+
+				double dp2Lat = 0;
+				double dp2Lng = 0;
+				if (im.isOnLastInstruction()) {
+					// WILLIAM: I don't know right now
+					dp2Lat = dp1Lat;
+					dp2Lng = dp1Lng;
+					//return;
+				} else {
+					// Get the coordinates of the decision point after next
+					dp2Lat = im.getNextInstructionLocation().getLatitude();
+					dp2Lng = im.getNextInstructionLocation().getLongitude();
+				}
 				// Get the coordinates of the decision point after next
-				dp2Lat = im.getNextInstructionLocation().getLatitude();
-				dp2Lng = im.getNextInstructionLocation().getLongitude();
-			}
-			// Get the coordinates of the decision point after next
-			//double dp2Lat = im.getNextInstructionLocation().getLatitude();
-			//double dp2Lng = im.getNextInstructionLocation().getLongitude();
+				//double dp2Lat = im.getNextInstructionLocation().getLatitude();
+				//double dp2Lng = im.getNextInstructionLocation().getLongitude();
 
-			// Calculate the distance to the next decision point
-			float[] results = new float[1];
-			float[] tlresult = new float[1];
-			Location.distanceBetween(lat, lng, dp1Lat, dp1Lng, results);
-			double distanceDP1 = results[0];
-			if (lastDistanceDP1 == 0) {
-				lastDistanceDP1 = distanceDP1;
-			}
+				// Calculate the distance to the next decision point
+				float[] results = new float[1];
+				float[] tlresult = new float[1];
+				Location.distanceBetween(lat, lng, dp1Lat, dp1Lng, results);
+				double distanceDP1 = results[0];
+				if (lastDistanceDP1 == 0) {
+					lastDistanceDP1 = distanceDP1;
+				}
 
-			// Check whether a now instruction must be used (only once for each
-			// route segment)
-			if (nowInstructionChecked == false
-					&& distanceDP1 >= MIN_DISTANCE_FOR_NOW_INSTRUCTION) {
-				nowInstructionUsed = true;
-			}
-			nowInstructionChecked = true;
+				// Check whether a now instruction must be used (only once for each
+				// route segment)
+				if (nowInstructionChecked == false
+						&& distanceDP1 >= MIN_DISTANCE_FOR_NOW_INSTRUCTION) {
+					nowInstructionUsed = true;
+				}
+				nowInstructionChecked = true;
 
-			// Calculate the distance to the decision point after next
-			Location.distanceBetween(lat, lng, dp2Lat, dp2Lng, results);    //in meters
-			double distanceDP2 = results[0];
-			if (lastDistanceDP2 == 0) {
-				lastDistanceDP2 = distanceDP2;
-			}
+				// Calculate the distance to the decision point after next
+				Location.distanceBetween(lat, lng, dp2Lat, dp2Lng, results);    //in meters
+				double distanceDP2 = results[0];
+				if (lastDistanceDP2 == 0) {
+					lastDistanceDP2 = distanceDP2;
+				}
 
-			//	String t= String.valueOf(distanceDP2);//+ String.valueOf(results[0]); //String.valueOf(results[0])
-			//	addstatus(t); //checking the distance in mts
-			// Log the distances
-			int f=1;
-			if(sig_flag == -1) {
-				f = im.findSignal();
-				sig_flag =1;
-			}
-			double dptllat = 0, dptllong = 0;
+				//	String t= String.valueOf(distanceDP2);//+ String.valueOf(results[0]); //String.valueOf(results[0])
+				//	addstatus(t); //checking the distance in mts
+				// Log the distances
+				int f = 1;
+				if (sig_flag == -1) {
+					f = im.findSignal();
+					sig_flag = 1;
+				}
+				double dptllat = 0, dptllong = 0;
 
-		//	GeoPoint nexttl = new GeoPoint((int) (im.tllat * 1e6), (int) (im.ltlong * 1e6));
+				//	GeoPoint nexttl = new GeoPoint((int) (im.tllat * 1e6), (int) (im.ltlong * 1e6));
 
-		//	GeoPoint l = new GeoPoint((int) (lat * 1e6), (int) (lng * 1e6));
+				//	GeoPoint l = new GeoPoint((int) (lat * 1e6), (int) (lng * 1e6));
 
-			GeoPoint nexttl = new GeoPoint((int) (im.tllat * 1e6), (int) (im.ltlong * 1e6));
+				GeoPoint nexttl = new GeoPoint((int) (im.tllat * 1e6), (int) (im.ltlong * 1e6));
 
-			GeoPoint l = new GeoPoint((int) ((37.654012) * 1e6), (int) ((-122.053441) * 1e6));
-			if (f == 1) {
-			//	Toast.makeText(getApplicationContext(), "Found signal at ! " + nexttl.getLatitude() + "long: " + nexttl.getLongitude(), Toast.LENGTH_SHORT).show();
-				//	Location.distanceBetween(dptllat, dptllong, lat, lng, tldis);
+				GeoPoint l = new GeoPoint((int) ((37.654012) * 1e6), (int) ((-122.053441) * 1e6));
+				if (f == 1) {
+					//	Toast.makeText(getApplicationContext(), "Found signal at ! " + nexttl.getLatitude() + "long: " + nexttl.getLongitude(), Toast.LENGTH_SHORT).show();
+					//	Location.distanceBetween(dptllat, dptllong, lat, lng, tldis);
 
-				//Old method with alot of error
+					//Old method with alot of error
 
 /*				double x = (nexttl.getLongitude() - l.getLongitude()) * Math.cos((l.getLatitude() + nexttl.getLatitude()) / 2);
 				double y = (nexttl.getLatitude() - l.getLatitude());
@@ -1456,98 +1649,99 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				//	int new_dis=Integer.parseInt(String.valueOf(dis).substring(3));
 				String t = String.valueOf(new_dis);*/
 
-				//Haversine Formula
-				//37.654012, -122.053441
-				dis = calculateDistance(lat,lng,im.tllat,im.ltlong);
-				String t = String.valueOf(dis);
-				addstatus(t);
-			}
-
-			String distancesString = "LastDistanceDP1: " + lastDistanceDP1
-					+ " | distanceDP1: " + distanceDP1 + " | LastDistanceDP2: "
-					+ lastDistanceDP2 + " | distanceDP2: " + distanceDP2;
-			debugger += distancesString + "\n";
-			Log.e("Navi.onLocationChanged", distancesString);
-
-
-			// If we have been within NODE_WINDOW_DISTANCE
-			// of the next node
-			if (distanceDP1 < getApplicationContext().getResources().getInteger(R.integer.NODE_WINDOW_DISTANCE)) {
-				beenWithinNodeWindow = true;
-			}
-			// Check the distances with the stored ones
-			// CASE 1: This is the handle when we can get close to
-			// our decision point like on city roads, but not
-			// highways where you merge off
-			if (distanceDP1 < MAX_DISTANCE_TO_DECISION_POINT) {
-				// Distance to decision point is less than
-				// MAX_DISTANCE_TO_DECISION_POINT
-
-				if (im.isOnLastInstruction()) {
-					// Tell User they have arrived and stop navigation
-					haveArrivedInstruction();
-					stopNavigation();
-					return;
+					//Haversine Formula
+					//37.654012, -122.053441
+					dis = calculateDistance(lat, lng, im.tllat, im.ltlong);
+					String t = String.valueOf(dis);
+					addstatus(t);
 				}
-				updateInstruction();
-			} else if (distanceDP1 < DISTANCE_FOR_NOW_INSTRUCTION
-					&& nowInstructionUsed == true) {
-				// Distance to decision point is less than
-				// DISTANCE_FOR_NOW_INSTRUCTION and decreasing, so a now
-				// instruction is prompted to the user
-				updateNowInstruction();
-				// Set variable nowInstructionUsed to false, so that the now
-				// instruction is only used once
-				nowInstructionUsed = false;
-			} else if (distanceDP1 > lastDistanceDP1
-					&& distanceDP2 < lastDistanceDP2
-					&& beenWithinNodeWindow) {
-				// The distance to the next decision point has increased and the
-				// distance to the decision point after next has decreased and
-				// user has been within the node window
-				//lastDistanceDP1 = distanceDP1;
-				//lastDistanceDP2 = distanceDP2;
-				distanceCounter++;
 
-				String logMessage = "distanceCounter: " + distanceCounter;
-				debugger += logMessage + "\n";
-				Log.v("Navi.onLocationChanged", logMessage);
-			} else if (distanceDP1 > lastDistanceDP1) {
-				// Distance to the next decision point and the decision point
-				// after next has increased (can lead to a driving error)
-				//lastDistanceDP1 = distanceDP1;
-				//lastDistanceDP2 = distanceDP2;
-				distanceCounter--;
-
-				String logMessage = "distanceIncreaseCounter: "
-						+ distanceCounter;
-				debugger += logMessage + "\n";
-				Log.v("Navi.onLocationChanged", logMessage);
-			}
-
-			// Update the last distances
-			lastDistanceDP1 = distanceDP1;
-			lastDistanceDP2 = distanceDP2;
+				String distancesString = "LastDistanceDP1: " + lastDistanceDP1
+						+ " | distanceDP1: " + distanceDP1 + " | LastDistanceDP2: "
+						+ lastDistanceDP2 + " | distanceDP2: " + distanceDP2;
+				debugger += distancesString + "\n";
+				Log.e("Navi.onLocationChanged", distancesString);
 
 
-			// Check if the whole guidance needs to be reloaded due to a driving
-			// error (user seems to go away from both the decision point and the
-			// decision point after next)
-			if (distanceCounter < (-1 * MAX_COUNTER_VALUE)) {
-				updateGuidance();
-			}
-			// Check if the instruction needs to be updated
-			// CASE 1 Extended: This handles the case where we are merging off like
-			// a highway where we can't get exactly close to decision
-			// point 1
-			if (distanceCounter > MAX_COUNTER_VALUE) {
-				if (im.isOnLastInstruction()) {
-					// Tell User they have arrived and stop navigation
-					haveArrivedInstruction();
-					stopNavigation();
-					return;
+				// If we have been within NODE_WINDOW_DISTANCE
+				// of the next node
+				if (distanceDP1 < getApplicationContext().getResources().getInteger(R.integer.NODE_WINDOW_DISTANCE)) {
+					beenWithinNodeWindow = true;
 				}
-				updateInstruction();
+				// Check the distances with the stored ones
+				// CASE 1: This is the handle when we can get close to
+				// our decision point like on city roads, but not
+				// highways where you merge off
+				if (distanceDP1 < MAX_DISTANCE_TO_DECISION_POINT) {
+					// Distance to decision point is less than
+					// MAX_DISTANCE_TO_DECISION_POINT
+
+					if (im.isOnLastInstruction()) {
+						// Tell User they have arrived and stop navigation
+						haveArrivedInstruction();
+						stopNavigation();
+						return;
+					}
+					updateInstruction();
+				} else if (distanceDP1 < DISTANCE_FOR_NOW_INSTRUCTION
+						&& nowInstructionUsed == true) {
+					// Distance to decision point is less than
+					// DISTANCE_FOR_NOW_INSTRUCTION and decreasing, so a now
+					// instruction is prompted to the user
+					updateNowInstruction();
+					// Set variable nowInstructionUsed to false, so that the now
+					// instruction is only used once
+					nowInstructionUsed = false;
+				} else if (distanceDP1 > lastDistanceDP1
+						&& distanceDP2 < lastDistanceDP2
+						&& beenWithinNodeWindow) {
+					// The distance to the next decision point has increased and the
+					// distance to the decision point after next has decreased and
+					// user has been within the node window
+					//lastDistanceDP1 = distanceDP1;
+					//lastDistanceDP2 = distanceDP2;
+					distanceCounter++;
+
+					String logMessage = "distanceCounter: " + distanceCounter;
+					debugger += logMessage + "\n";
+					Log.v("Navi.onLocationChanged", logMessage);
+				} else if (distanceDP1 > lastDistanceDP1) {
+					// Distance to the next decision point and the decision point
+					// after next has increased (can lead to a driving error)
+					//lastDistanceDP1 = distanceDP1;
+					//lastDistanceDP2 = distanceDP2;
+					distanceCounter--;
+
+					String logMessage = "distanceIncreaseCounter: "
+							+ distanceCounter;
+					debugger += logMessage + "\n";
+					Log.v("Navi.onLocationChanged", logMessage);
+				}
+
+				// Update the last distances
+				lastDistanceDP1 = distanceDP1;
+				lastDistanceDP2 = distanceDP2;
+
+
+				// Check if the whole guidance needs to be reloaded due to a driving
+				// error (user seems to go away from both the decision point and the
+				// decision point after next)
+				if (distanceCounter < (-1 * MAX_COUNTER_VALUE)) {
+					updateGuidance();
+				}
+				// Check if the instruction needs to be updated
+				// CASE 1 Extended: This handles the case where we are merging off like
+				// a highway where we can't get exactly close to decision
+				// point 1
+				if (distanceCounter > MAX_COUNTER_VALUE) {
+					if (im.isOnLastInstruction()) {
+						// Tell User they have arrived and stop navigation
+						haveArrivedInstruction();
+						stopNavigation();
+						return;
+					}
+					updateInstruction();
+
 			}
 		}
 	}

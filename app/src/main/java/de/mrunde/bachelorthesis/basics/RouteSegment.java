@@ -30,6 +30,9 @@ public class RouteSegment {
 	private int distance;
 
 	/**
+	 * Shape points for each segment*/
+	private GeoPoint[] shapePoints;
+	/**
 	 * Constructor of the RouteSegment class
 	 * 
 	 * @param startPoint
@@ -42,11 +45,12 @@ public class RouteSegment {
 	 *            Distance between the starting and the final position
 	 */
 	public RouteSegment(GeoPoint startPoint, GeoPoint endPoint,
-			int maneuverType, int distance) {
+			int maneuverType, int distance, GeoPoint[] shapePoints) {
 		this.startPoint = startPoint;
 		this.endPoint = endPoint;
 		this.maneuverType = maneuverType;
 		this.distance = distance;
+		this.shapePoints = shapePoints;
 	}
 
 	/**
@@ -70,10 +74,15 @@ public class RouteSegment {
 		return maneuverType;
 	}
 
+
 	/**
 	 * @return The distance between starting and final position
 	 */
 	public int getDistance() {
 		return distance;
+	}
+
+	public GeoPoint[] getShapePoints(){
+		return this.shapePoints;
 	}
 }
