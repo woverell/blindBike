@@ -39,6 +39,11 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorEventListener2;
+import android.hardware.SensorManager;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
@@ -100,7 +105,7 @@ import edu.csueb.ilab.blindbike.blindbike.CustomizeView;
  * @author Marius Runde
  */
 public class NaviActivity extends MapActivity implements OnInitListener,
-		LocationListener, CameraBridgeViewBase.CvCameraViewListener2,View.OnTouchListener {
+		LocationListener, CameraBridgeViewBase.CvCameraViewListener2,View.OnTouchListener, SensorEventListener {
 
 	private static final String TAG = "OCVSample::Activity";
 	private Mat mRgba;
@@ -112,6 +117,20 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private GlobalRF globalRF;
 	private LocalRF localRF;
 	private ObstacleAvoidance obstacleAvoidance;
+
+	// device sensor manager
+	private SensorManager mSensorManager;
+	private Sensor mAccelerometer;
+	private Sensor mMagnetometer;
+
+	private float[] mLastAccelerometer = new float[3];
+	private float[] mLastMagnetometer = new float[3];
+	private boolean mLastAccelerometerSet = false;
+	private boolean mLastMagnetometerSet = false;
+	private float[] mR = new float[9];
+	private float[] mOrientation = new float[3];
+	private float mCurrentDegree = 0f;
+
 
 	private List<Size> mResolutionList; //list of supported resolutions by camera
 
@@ -171,6 +190,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 */
 	private String str_destination;
 
+	/**
+	 * text to display for instruction to user for staying near edge of road
+	 */
 	private String directionsText;
 
 	/**
@@ -245,6 +267,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	 * 180 south, 270 west
 	 */
 	private double desiredBearing = -1;
+
+	/**
+	 * The current bearing measured from the phone compass sensor
+	 */
+	private double currentBearing = -1;
 
 	/**
 	 * This stores the previous distance to the candidate shape point
@@ -390,6 +417,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		setupGUI();
 		setupMapView();
 		setupMyLocation();
+
+		// Initialize sensor manager
+		mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+		mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+		mMagnetometer = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 
 		// Add the destination overlay to the map(puts flag on map)
 		addDestinationOverlay(destination_lat, destination_lng);
@@ -850,6 +882,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		lm.requestLocationUpdates(provider, 500, 1, this);
 		super.onResume();
 
+		// for the system's orientation sensor registered listeners
+		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
+		mSensorManager.registerListener(this, mMagnetometer, SensorManager.SENSOR_DELAY_GAME);
+
 		// Initialize OpenCV manager
 		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_9, this, mLoaderCallback); // CHRIS: What should the version actually be?
 
@@ -925,7 +961,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 		// CALL ROAD FOLLOWING(William)
 		// and update the directions to be given to the user
-		this.directionsText = globalRF.processFrame(mRgba, this.desiredBearing);
+		this.directionsText = globalRF.processFrame(mRgba, this.desiredBearing, this.currentBearing);
 
 		return mRgba;
 	}
@@ -942,6 +978,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		myLocationOverlay.disableMyLocation();
 		// Disable the LocationManager when in the background
 		lm.removeUpdates(this);
+
+		mSensorManager.unregisterListener(this, mAccelerometer);
+		mSensorManager.unregisterListener(this, mMagnetometer);
+
 		// Disable camera view
 		if (mOpenCvCameraView != null)
 			mOpenCvCameraView.disableView();
@@ -1184,6 +1224,32 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				updateInstruction();
 			}
 		}
+	}
+
+	@Override
+	public void onSensorChanged(SensorEvent event) {
+		if (event.sensor == mAccelerometer) {
+			System.arraycopy(event.values, 0, mLastAccelerometer, 0, event.values.length);
+			mLastAccelerometerSet = true;
+		} else if (event.sensor == mMagnetometer) {
+			System.arraycopy(event.values, 0, mLastMagnetometer, 0, event.values.length);
+			mLastMagnetometerSet = true;
+		}
+		if (mLastAccelerometerSet && mLastMagnetometerSet) {
+			SensorManager.getRotationMatrix(mR, null, mLastAccelerometer, mLastMagnetometer);
+			SensorManager.getOrientation(mR, mOrientation);
+			float azimuthInRadians = mOrientation[0];
+			double azimuthInDegress = (Math.toDegrees(azimuthInRadians)+360)%360;
+
+			this.currentBearing = (azimuthInDegress + 90) % 360;
+		}
+
+		Log.v("BEARING", Double.toString(this.currentBearing));
+
+	}
+		@Override
+	public void onAccuracyChanged(Sensor sensor, int accuracy){
+
 	}
 
 	@Override

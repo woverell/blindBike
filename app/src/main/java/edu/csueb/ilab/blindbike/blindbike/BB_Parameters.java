@@ -116,7 +116,8 @@ public class BB_Parameters {
     // Minimum Number of votes to consider line
     public static final int houghMinNumVotes = 20;
     public static final int houghMaxLineGap = 1;
-    public static final int houghNumTopLines = 10;
+    public static final int houghNumTopLines = 10; // This is for display to see the top x lines
+    public static final int houghSelectTopLines = 4; // This is for selecting the right most of the top lines
     public static final int houghNeighborhoodSize = 4;
 
     public static final boolean ignoreEdgesInHoughTransform = true;

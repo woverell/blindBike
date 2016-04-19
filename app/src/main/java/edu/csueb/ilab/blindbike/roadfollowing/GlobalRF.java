@@ -182,7 +182,7 @@ public class GlobalRF {
      *
      * @param imgFrame
      */
-    public String processFrame(Mat imgFrame, double desiredBearing) {
+    public String processFrame(Mat imgFrame, double desiredBearing, double currentBearing) {
         boolean lineFound = false;
 
         // if the image is empty then don't process anything or if stage to display is original image
@@ -363,7 +363,16 @@ public class GlobalRF {
         //Imgproc.HoughLines(binaryContourImage, lines, BB_Parameters.houghRhoResolution_PercentRunningResolution_AccumulatorSpace, BB_Parameters.houghThetaResolution_AccumulatorSpace, BB_Parameters.houghMinNumVotes);
         //Imgproc.HoughLinesP(binaryContourImage, lines, BB_Parameters.houghRhoResolution_PercentRunningResolution_AccumulatorSpace, BB_Parameters.houghThetaResolution_AccumulatorSpace, BB_Parameters.houghMinNumVotes);
 
-        Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform);
+        // If a desired bearing is not set then use the default parameters for hough lines for angle selection
+        if(desiredBearing < 0) {
+            Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform);
+
+        // otherwise use the desired bearing and the current bearing to find lines in the expected range
+        }else{
+            int startAngle = 0;
+            int endAngle = 0;
+            Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, startAngle, endAngle, BB_Parameters.ignoreEdgesInHoughTransform);
+        }
         linesData = Hough_Lines.findLines(outputData, binaryContourImage.height(), binaryContourImage.width(), BB_Parameters.houghNumTopLines, BB_Parameters.houghMinNumVotes, BB_Parameters.houghNeighborhoodSize);
 
         Point pt1 = new Point();
