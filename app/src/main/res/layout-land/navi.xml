@@ -69,6 +69,14 @@
                 android:layout_gravity="center_horizontal|bottom"
                 android:textColor="@color/RED" />
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Measured Bearing"
+                android:id="@+id/measuredBearingTextView"
+                android:layout_gravity="center_horizontal|top"
+                android:textColor="@color/RED" />
+
         </FrameLayout>
 
         <RelativeLayout

@@ -154,6 +154,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	private TextView bearingTextView;
 
 	/**
+	 * text view to show the measured bearing
+	 */
+	private TextView measuredBearingTextView;
+
+	/**
 	 * text view to show the merge direction
 	 */
 	private TextView directionsTextView;
@@ -447,6 +452,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		this.iv_instruction = (ImageView) findViewById(R.id.iv_instruction);
         this.reroute_button = (Button) findViewById(R.id.reroute_button);
 		this.bearingTextView = (TextView) findViewById(R.id.bearingTextView);
+		this.measuredBearingTextView = (TextView) findViewById(R.id.measuredBearingTextView);
 		this.directionsTextView = (TextView) findViewById(R.id.directionsTextView);
         reroute_button.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -883,8 +889,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		super.onResume();
 
 		// for the system's orientation sensor registered listeners
-		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
-		mSensorManager.registerListener(this, mMagnetometer, SensorManager.SENSOR_DELAY_GAME);
+		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+		mSensorManager.registerListener(this, mMagnetometer, SensorManager.SENSOR_DELAY_NORMAL);
 
 		// Initialize OpenCV manager
 		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_9, this, mLoaderCallback); // CHRIS: What should the version actually be?
@@ -1242,9 +1248,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			double azimuthInDegress = (Math.toDegrees(azimuthInRadians)+360)%360;
 
 			this.currentBearing = (azimuthInDegress + 90) % 360;
+			this.measuredBearingTextView.setText(Double.toString(this.currentBearing)); // display the bearing
 		}
-
-		Log.v("BEARING", Double.toString(this.currentBearing));
 
 	}
 		@Override

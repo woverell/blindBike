@@ -182,9 +182,15 @@ public class GlobalRF {
      *
      * @param imgFrame
      */
-    public String processFrame(Mat imgFrame, double desiredBearing, double currentBearing) {
-        boolean lineFound = false;
+    public String processFrame(Mat imgFrame, double desiredBearing, double measuredBearing) {
+        boolean road_edge_found = false;
+        int desired_measured_bearing_difference = 0; // set the default bearing difference to 0
 
+        // if the bearings are available
+        if(desiredBearing >= 0 && measuredBearing >= 0) {
+            // The difference between the desired and measured bearing
+            desired_measured_bearing_difference = angle_difference(measuredBearing, desiredBearing);
+        }
         // if the image is empty then don't process anything or if stage to display is original image
         if(imgFrame.empty())
             return "";
@@ -369,16 +375,24 @@ public class GlobalRF {
 
         // otherwise use the desired bearing and the current bearing to find lines in the expected range
         }else{
-            int startAngle = 0;
-            int endAngle = 0;
-            Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, startAngle, endAngle, BB_Parameters.ignoreEdgesInHoughTransform);
+            // if the angle difference is less than 45 degrees then adjust the hough detector angle window to accomodate
+            // if the angle difference is greater than 45 degrees it should have already been caught by orientation adjustment
+            if(Math.abs(desired_measured_bearing_difference) <= 45)
+                Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow + desired_measured_bearing_difference, BB_Parameters.lineSelectionAngleRangeHigh + desired_measured_bearing_difference, BB_Parameters.ignoreEdgesInHoughTransform);
         }
         linesData = Hough_Lines.findLines(outputData, binaryContourImage.height(), binaryContourImage.width(), BB_Parameters.houghNumTopLines, BB_Parameters.houghMinNumVotes, BB_Parameters.houghNeighborhoodSize);
 
+
+
+        // temporary points to use in loop
         Point pt1 = new Point();
         Point pt2 = new Point();
+        // reset the top line
+        this.topLinePt1 = null;
+        this.topLinePt2 = null;
 
-        // Draw lines on imgFrame
+        // Calculate the parameters for the top lines and determine which is the road edge
+        // Loop through all the top voted lines
         for (int i = BB_Parameters.houghNumTopLines - 1; i >= 0; i--) {
 
             double[] currentLine = linesData[i];
@@ -388,25 +402,41 @@ public class GlobalRF {
             if(numVotes > 0) {
                 Log.i("Line", "Num:" + Integer.toString(i) + " rho:" + Double.toString(rho) + " theta" + Double.toString(theta));
 
-
+                // calculate the start and end points of the line (convert from polar to cartesian)
                 double a = Math.cos(theta), b = Math.sin(theta);
                 double x0 = a * rho, y0 = b * rho;
-                pt1.x = Math.round(x0 + 1000 * (-b));
-                pt1.y = Math.round(y0 + 1000 * (a));
-                pt2.x = Math.round(x0 - 1000 * (-b));
-                pt2.y = Math.round(y0 - 1000 * (a));
+                pt1.x = Math.round(x0 + 1000 * (-b)); // add by 1000 here to extend past edge of image, clip later
+                pt1.y = Math.round(y0 + 1000 * (a)); // add by 1000 here to extend past edge of image, clip later
+                pt2.x = Math.round(x0 - 1000 * (-b)); // subtract by 1000 here to extend past edge of image, clip later
+                pt2.y = Math.round(y0 - 1000 * (a)); // subtract by 1000 here to extend past edge of image, clip later
 
                 Core.clipLine(this.boundingRect, pt1, pt2); // clip the line to the region of interest
 
-                if(i == 0){
-                    lineFound = true;
-                    this.topLinePt1 = pt1;
-                    this.topLinePt2 = pt2;
-                }
+                // ----------------Select "rightmost" line------------------
+                // ---------------------------------------------------------
+                // if this is the first line
+                // and the slope is positive (because of inverted coordinate system, would be negative in traditional cartesian coords)
+                if(this.topLinePt1 == null && slope(pt1,pt2) > 0){
+                    Log.v("slope", Double.toString(slope(pt1, pt2)));
+                    this.topLinePt1 = pt1.clone();
+                    this.topLinePt2 = pt2.clone();
 
+                    road_edge_found = true; // signal a road edge was found
+
+                // otherwise if this isn't the first line and it is further right and the slope is positive
+                // (because of inverted coordinate system, would be negative in traditional cartesian coords)
+                }else if(this.topLinePt1 != null && pt1.x + pt2.x >= topLinePt1.x + topLinePt2.x && slope(pt1, pt2) > 0){
+                    Log.v("slope", Double.toString(slope(pt1, pt2)));
+                    // if the current point is further right than the current top line then replace
+                    this.topLinePt1 = pt1.clone();
+                    this.topLinePt2 = pt2.clone();
+                }
+                // ----------------------------------------------------------
+                // --------------End Select "rightmost" line------------------
+
+                // draw the top lines
                 if (BB_Parameters.displayHoughLines == true) {
                     if (i == 0) {
-                        lineFound = true;
                         Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 0, 255)); // pink
                     }
                     else if (i == 1)
@@ -423,7 +453,11 @@ public class GlobalRF {
             }
             //}
         }
-        if(lineFound) {
+        if(road_edge_found) {
+            // Draw the road edge
+            Log.v("ROAD EDGE", "R.E. FOUND!");
+            Core.line(regionOfInterest, this.topLinePt1, this.topLinePt2, new Scalar(0, 255, 0)); // green
+
             // Decide if need to go to the left or right
             if (this.topLinePt1.y >= this.topLinePt2.y) {
                 if (this.topLinePt1.x >= BB_Parameters.leftOfCenterThreshold) {
@@ -464,6 +498,35 @@ public class GlobalRF {
             Core.line(imgFrame, new Point(lineparams.get(2,0)[0]-10*lineparams.get(0, 0)[0], lineparams.get(3, 0)[0]-10*lineparams.get(1, 0)[0]), new Point(lineparams.get(2, 0)[0]+10*lineparams.get(0, 0)[0], lineparams.get(3, 0)[0]+10*lineparams.get(1, 0)[0]), new Scalar(0, 0, 0));
         }
         */
+    }
+
+    /**
+     * returns the angle distance between two passed angles
+     * returns negative if start_angle is to the right of end_angle
+     * returns positive if start_angle is to the left of end_angle
+     * assuming we are looking at closest distance between the two angles
+     * @param start_angle
+     * @param end_angle
+     * @return distance
+     */
+    private int angle_difference(double start_angle, double end_angle){
+        double phi = Math.abs(start_angle - end_angle) % 360;       // This is either the distance or 360 - distance
+        double distance = phi > 180 ? 360 - phi : phi;
+
+        if((end_angle + distance % 360) == start_angle)
+            return (int)-distance;
+        else
+            return (int)distance;
+    }
+
+    /**
+     * returns the slope of the line created by two points
+     * @param pt1
+     * @param pt2
+     * @return slope of the line
+     */
+    private double slope(Point pt1, Point pt2){
+        return (pt2.y - pt1.y) / (pt2.x - pt1.x);
     }
 
     /**

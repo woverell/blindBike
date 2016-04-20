@@ -53,10 +53,10 @@ public class BB_Parameters {
 
 
     // If test_mode true then we process on testImage rather than camera images
-    public static final boolean test_mode = false;
+    public static final boolean test_mode = true;
 
     // Image to use in test_mode
-    public static int testImage = R.drawable.si_4;
+    public static int testImage = R.drawable.si_30;
 
     // Parameter for Small Blob Elimination Step (Step 7.1)
     // Based on birds eye view geometry which we dont have 10 columns filling aprox 280 pixel high image would be 2800
@@ -98,9 +98,9 @@ public class BB_Parameters {
 
     public static final boolean displayTopTwoContours = false;
 
-    public static final boolean displayHoughLines = false;
+    public static final boolean displayHoughLines = true;
 
-    public static final boolean displayBinaryContourImage = false;
+    public static final boolean displayBinaryContourImage = true;
 
     // Parameter for erosion/dilation value of roadBinaryImage
     public static final boolean perform_Erosion_Dilation = false;
