@@ -28,8 +28,7 @@ public class Filter_Utility {
      * @param inputImg
      * @param outputImg
      */
-    static int[][] classifyImageIntoDataClass(GMM gmm, Mat inputImg, Mat outputImg, int class_index){
-        int[][] classArray = new int[inputImg.rows()][inputImg.cols()];
+    static void classifyImageIntoDataClass(GMM gmm, Mat inputImg, Mat outputImg, int class_index, int[][] classArray){
 
         // Step 1: Cycle through every feature vector (each feature vector corresponds to a pixel)
         // and classify it using the gmm into either 0(not of that class) or 255(of that class)
@@ -57,7 +56,7 @@ public class Filter_Utility {
 
         }
 
-        return classArray;
+        //return classArray;
     }
 
     /**
@@ -70,22 +69,13 @@ public class Filter_Utility {
      * @param img
      * @return 2d array representing labeled image of classes
      */
-    static int[][] classifyImageIntoDataClasses(Vector<GMM> gmms, Mat img, Mat roadBinaryImage){
-
-            int[][] classArray = null;
-            int imgHeight = -1;
-            int imgWidth = -1;
+    static void classifyImageIntoDataClasses(Vector<GMM> gmms, Mat img, Mat roadBinaryImage, int[][] classArray){
 
             int count_NO_CLASS = 0;
             int count_Classes[] = new int[gmms.size()];
 
             for(int c =0; c< gmms.size(); c++)
                 count_Classes[c] = 0;
-
-
-            imgHeight = img.rows();
-            imgWidth = img.cols();
-            classArray = new int[imgHeight][imgWidth];
 
             // Step 1: Cycle through every feature vector (each feature vector corresponds to a pixel)
             // and classify it using the GMMs, one GMM per data class (one gmm for sky, one for road, ...)
@@ -134,7 +124,7 @@ public class Filter_Utility {
 
 
                     colNum++;
-                    if(colNum%imgWidth == 0){
+                    if(colNum%img.cols() == 0){
                         colNum = 0;
                         rowNum++;
                     }
@@ -142,7 +132,7 @@ public class Filter_Utility {
                 }
             }
 
-        return classArray;
+        //return classArray;
     }
 
     /**

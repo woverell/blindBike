@@ -106,6 +106,8 @@ public class GlobalRF {
 
     Vector<ClassedMultipleFixedRangeModel> fixedRangeModels;
 
+    int labeledImage[][];
+
     /**
      * Constructor
      */
@@ -122,6 +124,8 @@ public class GlobalRF {
         boundingRect = new Rect(0,0,roadBinaryImage.width(), roadBinaryImage.height());
 
         heightCutoff = (int)(BB_Parameters.cutOff_Area_Of_Interest * BB_Parameters.scaleFactor_height); // adjusting for scale
+
+        labeledImage = new int[heightCutoff][roadBinaryImage.cols()]; // initialize the labeledImage
 
         if(BB_Parameters.classifyByMultipleClasses == true)
             gmms = Filter_Utility.readParametersForMixtureOfGaussiansForAllDataClasses("gmmFileForAllDataClasses.dat", context, BB_Parameters.std_dev_range_factor);
@@ -183,10 +187,10 @@ public class GlobalRF {
      * @param imgFrame
      */
     public String processFrame(Mat imgFrame, double desiredBearing, double measuredBearing) {
-        boolean road_edge_found = false;
+        boolean road_edge_found = false; // will be true if road edge found in this frame
         int desired_measured_bearing_difference = 0; // set the default bearing difference to 0
 
-        // if the bearings are available
+        // if the bearings are available calculate the difference
         if(desiredBearing >= 0 && measuredBearing >= 0) {
             // The difference between the desired and measured bearing
             desired_measured_bearing_difference = angle_difference(measuredBearing, desiredBearing);
@@ -196,7 +200,7 @@ public class GlobalRF {
             return "";
 
         // PHASE 3: Area of Interest
-        // regionOfInterest is a submat of imgFrame, any changes to regionOfInterset will change imgFrame
+        // regionOfInterest is a submat of imgFrame, any changes to regionOfInterest will change imgFrame
         Mat regionOfInterest = imgFrame.submat(this.heightCutoff, imgFrame.height(), 0, imgFrame.width());
 
         // PHASE 4: Homographic Transform (TBD)
@@ -204,11 +208,10 @@ public class GlobalRF {
 
         // PHASE 5: Classification
         // Create and display pseudo colored image of all classes if stage to display is set to 1
-        int labeledImage[][];
         if(BB_Parameters.classifyByMultipleClasses == true) {
             if(BB_Parameters.classifyByGMM_NOT_FixedRange == true)
             {
-                labeledImage = Filter_Utility.classifyImageIntoDataClasses(gmms, regionOfInterest, this.roadBinaryImage);
+                Filter_Utility.classifyImageIntoDataClasses(gmms, regionOfInterest, this.roadBinaryImage, labeledImage);
                 if(BB_Parameters.adaptive_outlier_elimination)
                    labeledImage = Filter_Utility.adaptiveOutlierElimination(BB_Parameters.road_class_index, labeledImage, gmms,regionOfInterest,this.roadBinaryImage);
             }
@@ -221,7 +224,7 @@ public class GlobalRF {
         // ELSE Create the ONLY by road road binary image(this.roadBinaryImage)
         else {
             if(BB_Parameters.classifyByGMM_NOT_FixedRange == true) {
-                labeledImage = Filter_Utility.classifyImageIntoDataClass(gmms.elementAt(BB_Parameters.road_class_index), regionOfInterest, this.roadBinaryImage, BB_Parameters.road_class_index);
+                Filter_Utility.classifyImageIntoDataClass(gmms.elementAt(BB_Parameters.road_class_index), regionOfInterest, this.roadBinaryImage, BB_Parameters.road_class_index, labeledImage);
                 if(BB_Parameters.adaptive_outlier_elimination)
                     labeledImage = Filter_Utility.adaptiveOutlierElimination(BB_Parameters.road_class_index, labeledImage, gmms,regionOfInterest,this.roadBinaryImage);
             }else {
@@ -286,9 +289,6 @@ public class GlobalRF {
 
             double contourArea = Imgproc.contourArea(nextContour); // Can possibly ignore and look for small "blob" by looking at contour length instead
 
-            Log.i("ContourArea:", Double.toString(contourArea));
-            Log.i("ContourHeight", Double.toString(nextContour.size().height));
-            Log.i("ContourWidth", Double.toString(nextContour.size().width));
             // 7.1: Small blob elimination
             if(contourArea > BB_Parameters.minNumberBlobPixels) {
                 //Log.i("ContourArea:", Double.toString(contourArea));
@@ -417,7 +417,6 @@ public class GlobalRF {
                 // if this is the first line
                 // and the slope is positive (because of inverted coordinate system, would be negative in traditional cartesian coords)
                 if(this.topLinePt1 == null && slope(pt1,pt2) > 0){
-                    Log.v("slope", Double.toString(slope(pt1, pt2)));
                     this.topLinePt1 = pt1.clone();
                     this.topLinePt2 = pt2.clone();
 
@@ -426,7 +425,6 @@ public class GlobalRF {
                 // otherwise if this isn't the first line and it is further right and the slope is positive
                 // (because of inverted coordinate system, would be negative in traditional cartesian coords)
                 }else if(this.topLinePt1 != null && pt1.x + pt2.x >= topLinePt1.x + topLinePt2.x && slope(pt1, pt2) > 0){
-                    Log.v("slope", Double.toString(slope(pt1, pt2)));
                     // if the current point is further right than the current top line then replace
                     this.topLinePt1 = pt1.clone();
                     this.topLinePt2 = pt2.clone();
