@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
+import java.util.Vector;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
@@ -87,6 +88,7 @@ import com.mapquest.android.maps.RouteManager;
 import de.mrunde.bachelorthesis.basics.RouteSegment;
 import de.mrunde.bachelorthesis.instructions.DistanceInstruction;
 import de.mrunde.bachelorthesis.instructions.ShapePointManager;
+import edu.csueb.ilab.blindbike.blindbike.BB_Parameters;
 import edu.csueb.ilab.blindbike.blindbike.CustomizeView;
 import edu.csueb.ilab.blindbike.blindbike.EntranceActivity;
 import edu.csueb.ilab.blindbike.blindbike.R;
@@ -339,6 +341,16 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	double elevation[];
 	// The distance between the points
 	double distance[];
+	// ShapePoints from the elevation api call
+	GeoPoint[] elevation_shapePoints;
+	//segment_no for finding out which segment are we currently on
+	int segment_no=0;
+
+	// Vector Indices for global detection
+	Vector indices;
+	// Flag to skip the calculate_rows() call in OnCameraFrame when we have a general
+	// search for a TL
+	boolean skip_calculate_rows=false;
 
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
 		@Override
@@ -780,15 +792,20 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				result_elevation = new JSONObject(output1);
 				if(result_elevation.length()!=0)
 				{
-
 					JSONArray elevationCollection = result_elevation.getJSONArray("elevationProfile");
+					JSONArray elevation_shapePoint_Collection = result_elevation.getJSONArray("shapePoints");
 					elevation = new double[elevationCollection.length()];
 					distance = new double[elevationCollection.length()];
+					elevation_shapePoints = new GeoPoint[elevation_shapePoint_Collection.length()/2];
 					for(int i = 0; i < elevationCollection.length(); i++){
 						elevation[i] = elevationCollection.getJSONObject(i).getDouble("height");
 						distance[i] = elevationCollection.getJSONObject(i).getDouble("distance");
 					}
-					//Log.i("CHRIS:","Done for Debug");
+					int k=0;
+					for(int j = 0; j < elevation_shapePoint_Collection.length() - 1; j += 2){
+						elevation_shapePoints[k] = new GeoPoint(elevation_shapePoint_Collection.getDouble(j),elevation_shapePoint_Collection.getDouble(j+1));
+						k++;
+					}
 				}
 
 					return result;
@@ -1128,11 +1145,21 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		mBlobColorHsv = new Scalar(255);
 		SPECTRUM_SIZE = new Size(200, 64);
 		CONTOUR_COLOR = new Scalar(255,0,0,255);
+		indices = new Vector();
 		test=new double[100][3];
+		try {
+
+			mMyCamera.setPreviewFPS(Double.valueOf(10000),Double.valueOf(11000));
+
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
 	}
+	// This is a method for the general TL detection where we calculate min and max based on a distnace
 	double d;
-	public double Calculate_rows()
+	public double Calculate_rows(int dis)
 	{
 		//trying values
 		/*double min_row_bound=0.0,max_row_bound=0.0,sc_min=0.0,sc_max=0.0;
@@ -1198,55 +1225,6 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 	int testi=0;
 	public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-	//	mRgba = inputFrame.rgba();
-		// Step 1: Downsize Image???
-			// If it's running at 1080p that means the resolution is 1920x1080
-			// Downsampling by 2 would lead 960x540
-			// Downsampling by 4 would lead 480x270
-	//	Mat halfRgba = new Mat();
-	//	Imgproc.pyrDown(mRgba, halfRgba); // Downsample
-	//	Log.i("NaviActivityHalf", "width: " + halfRgba.width() + "height: " + halfRgba.height() + "\n");
-
-
-	//	int width = mRgba.width();
-	//	int height = mRgba.height();
-	//	Log.i("NaviActivity", "width: " + width + "height: " + height + "\n");
-		// Step 2: Any preprocessing/noise removal???
-		// Step 3: Do we only process every x frames???
-			// We would figure out x is a function of x = f(maximum bike speed, maximum distance between frames)
-			// if(c == x) {process frame}
-			// c++;
-			// if(c > x) {set c = 1}
-
-		// Step 4: Performance Monitoring
-		// Maybe we should have some kind of timer function so we know which frames we are processing and
-		// write out to a log file to monitor performance
-		// NOTE: Looking at the org.opencv.android.FpsMeter
-		/*if (mIsColorSelected) {
-			mDetector.process(mRgba);
-			List<MatOfPoint> contours = mDetector.getContours();
-			Log.e(TAG, "Contours count: " + contours.size());
-			Imgproc.drawContours(mRgba, contours, -1, CONTOUR_COLOR);
-
-			Mat colorLabel = mRgba.submat(4, 68, 4, 68);
-			colorLabel.setTo(mBlobColorRgba);
-
-			Mat spectrumLabel = mRgba.submat(4, 4 + mSpectrum.rows(), 70, 70 + mSpectrum.cols());
-			mSpectrum.copyTo(spectrumLabel);
-		}*/
-
-		//return mRgba;
-		// Light Detection
-		//lightDetector.processFrame(halfRgba);
-
-		// Obstacle Detection
-		//obstacleAvoidance.processFrame(halfRgba);
-
-		// CALL ROAD FOLLOWING(William)
-		//globalRF.processFrame(halfRgba);
-
-		//Imgproc.pyrUp(halfRgba, halfRgba); //upsample
-		//return halfRgba;
 
 		// ****** I have my detection module in here ***********//
 		mRgba = inputFrame.rgba();
@@ -1264,9 +1242,13 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		Mat cropped = new Mat(mRgbabright, new Range(0,wi),new Range(0,mRgbabright.cols()));*/
 		String w="";
 		int wi=0;
-		double v=Calculate_rows();
-	//	w=String.valueOf(max_row_bound - min_row_bound);
-		v=min_row_bound;
+
+		// Here we are calculating the min_row_bound and max_row_bound for a specific TL detection
+		//where we know exactly that we are approaching an Intersection
+		if(skip_calculate_rows==false) {
+			 Calculate_rows(dis);
+		}
+
 		if((max_row_bound - min_row_bound)<0)
 		{
 			wi=(int)Math.abs(max_row_bound - min_row_bound);
@@ -1282,39 +1264,17 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 //		Mat cropped = new Mat(mRgbabright, new Range(0,wi),new Range(0,mRgbabright.cols()));
 
-		//touched rectangle solution for cropping
-/*
-		int xOffset = (mOpenCvCameraView.getWidth() - cols) / 2;
-		int yOffset = (mOpenCvCameraView.getHeight() - rows) / 2;
-
-		int x = 893;//(int)event.getX() - xOffset;
-		int y = 444;//(int)event.getY() - yOffset;
-
-		Log.i(TAG, "Touch image coordinates: (" + x + ", " + y + ")");
-
-		//     if ((x < 0) || (y < 0) || (x > cols) || (y > rows)) return false;
-
-		Rect touchedRect = new Rect();
-
-		touchedRect.x = (x>4) ? x-4 : 0;
-		touchedRect.y = (y>4) ? y-4 : 0;
-
-		touchedRect.width = (x+4 < cols) ? x + 4 - touchedRect.x : cols - touchedRect.x;
-		touchedRect.height = (y+4 < rows) ? y + 4 - touchedRect.y : rows - touchedRect.y;
-
-		Mat touchedRegionRgba = mRgbabright.submat(touchedRect);
-*/
-
 		Mat touchedRegionHsv = new Mat();
 		//touchedRegionRgba
 		int row_start=0;
 
+		//Done to get rid of negative values in min_row_bound and max_row_bound
 		if(min_row_bound<0)
 			row_start=Math.abs((int)min_row_bound);
 		else
 			row_start=(int)min_row_bound;
 
-		int row_end;
+		int row_end=0;
 		if(max_row_bound<0)
 			row_end =Math.abs((int)max_row_bound);
 		else
@@ -1400,6 +1360,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		Toast.makeText(v.getContext(),"Brightness Val: "+mLightQuantity,Toast.LENGTH_SHORT).show();
 		float focal_length = mMyCamera.getFocalLength();
 		Toast.makeText(v.getContext(), "Focal length: " + focal_length, Toast.LENGTH_SHORT).show();
+
+
 		return false;
 	}
 
@@ -1443,6 +1405,158 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		mts = mts / 10;
 		return mts;
 	}
+
+	//This is a method which is a copy of the general method which will return min/max row bound for distance provided
+	//will return min_row_bound if type=min row and return max_row_bound if type=max row
+	public double Calculate_rows(int dis,String type)
+	{
+
+		double sc_min=0.0,sc_max=0.0;
+		double f=4.8;
+		int lr=360;		//center row of the image
+
+		double r_min=480.00,r_max=700.00,b=110;	//Dim of the Traffic Light b=110
+		d=dis;
+
+		// debug with set distance
+		//d=1174; try 1182
+		//d=1100;
+		if(d==1903)	d=1900;
+		if(d==1899)	d=1900;
+
+		Tmin = (float) Math.toDegrees(Math.atan((r_min - b) / d));
+		sc_min = f * (Math.tan(Tmin));
+		Log.i("CHRIS Vals: ", String.valueOf(Math.tan(Tmin)));
+		min_row_bound = sc_min + lr;
+
+		Tmax = (float) Math.toDegrees(Math.atan(((r_max - b) / d)));
+		sc_max = f * Math.tan(Tmax);
+		Log.i("CHRIS Vals:", String.valueOf(Math.tan(Tmax)));
+		max_row_bound = sc_max + lr;
+		//invert values to get the max and min above 360
+		min_row_bound = 720 - min_row_bound;
+		max_row_bound = 720 - max_row_bound;
+		//Error correction
+
+
+		//-100 for lower light now trying -200
+		min_row_bound_low = min_row_bound - 100;
+		max_row_bound_low = max_row_bound - 100;
+
+		min_row_bound = min_row_bound - 200;
+		max_row_bound = max_row_bound - 200;
+
+		///for 2500 as it has less rows in betwen &5000
+		max_row_bound = max_row_bound + 100;
+
+		double ret=0;
+		if(type.equalsIgnoreCase("min row"))
+		{
+			ret = min_row_bound;
+		}
+		else if(type.equalsIgnoreCase("max row"))
+		{
+			ret = max_row_bound;
+		}
+		mIsColorSelected = true;
+		return ret;
+	}
+
+	GeoPoint tmp = null,tmp2=null;
+	public Vector getIndices(int segment_no,double currentSPLat,double currentSPLng) {
+		int flg=0;
+		float[] distanceResultsA = new float[1];
+
+		GeoPoint spArray[] = routeSegments.get(segment_no).getShapePoints();
+		/*for (int i = 0; i < routeSegments.get(segment_no).getShapePoints().length;) {
+			//Find the distance between current and next SP Point
+			if(indices.size() > 0) {
+				if (i <= (int) indices.lastElement()) {
+					i = (int) indices.lastElement();
+				}
+			}
+			double tmp1 = spArray[i].getLatitude();
+			double tmp2 = spArray[i].getLongitude();
+			double tmpLng = currentSPLng;
+			Location.distanceBetween(currentSPLat, currentSPLng, spArray[i].getLatitude(), spArray[i].getLongitude(), distanceResultsA);
+
+			if (distanceResultsA[0] > BB_Parameters.minDistanceToDetectLight && distanceResultsA[0] <= BB_Parameters.maxDistanceToDetectLight)
+				indices.add(i);
+
+			i++;
+		}
+
+		if(tmp2 != tmp)
+		{
+			tmp2 = tmp;
+		}
+		else{
+			// we move our currentSPLat and Lng to next available index
+			tmp = spArray[(int) indices.lastElement()+1];
+			flg=1;
+		}
+
+		if(indices.size() > 0 && flg==0) {
+			tmp = spArray[(int) indices.lastElement()];
+			flg=0;
+		}
+		//Check if we have reached the end of the segment
+		if (tmp.getLatitude()!=spArray[spArray.length-1].getLatitude() && tmp.getLongitude()!= spArray[spArray.length-1].getLongitude()) {
+			getIndices(segment_no, tmp.getLatitude(), tmp.getLongitude());
+		}*/
+
+		for (int i = 0; i < routeSegments.get(segment_no).getShapePoints().length;i++) {
+			//Find the distance between current and next SP Point
+
+			double tmp1 = spArray[i].getLatitude();
+			double tmp2 = spArray[i].getLongitude();
+			double tmpLng = currentSPLng;
+			Location.distanceBetween(currentSPLat, currentSPLng, spArray[i].getLatitude(), spArray[i].getLongitude(), distanceResultsA);
+
+			if (distanceResultsA[0] > BB_Parameters.minDistanceToDetectLight && distanceResultsA[0] <= BB_Parameters.maxDistanceToDetectLight)
+				indices.add(i);
+
+		}
+		return indices;
+	}
+
+	public int find_shapePoint(double currentSPLat,double currentSPLng){
+
+		int index=0;
+
+		for(int i=0;i<routeSegments.size();i++)
+		{
+			//Checking to see if it is in the very first segment
+			if((routeSegments.get(i).getStartPoint()== null) && ((routeSegments.get(i).getEndPoint().getLatitude()== currentSPLat) && (routeSegments.get(i).getEndPoint().getLongitude() == currentSPLng)))
+			{
+				index= i;
+				break;
+			}
+			if(routeSegments.get(i).getStartPoint()==null)
+				i++;
+
+			if((routeSegments.get(i).getStartPoint().getLatitude()==currentSPLat && routeSegments.get(i).getStartPoint().getLongitude()==currentSPLng) &&
+					(routeSegments.get(i).getEndPoint().getLatitude()==currentSPLat && routeSegments.get(i).getEndPoint().getLongitude()==currentSPLng))
+			{
+				index = i;
+				break;
+			}
+			else
+			{
+				GeoPoint[] tempArray = routeSegments.get(i).getShapePoints();
+				for(int j=0;j<tempArray.length;j++)
+				{
+					if(tempArray[j].getLatitude() == currentSPLat && tempArray[j].getLongitude() == currentSPLng) {
+						index = i;
+						break;
+					}
+
+				}
+				if(index!=0) break;
+			}
+		}
+		return index;
+	}
 	@Override
 	public void onLocationChanged(Location location) {
 		debugger += "onLocationChanged() called...\n";
@@ -1475,7 +1589,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				Location.distanceBetween(lat, lng, nextSPLat, nextSPLng, distanceResultsB);
 				float temp_distance_diff = distanceResultsB[0] - distanceResultsA[0];
 
-				//Get the segments
+				//Get the segments and store it in routeSegments
 				routeSegments = im.getSegments();
 				// loop through until at next closest shape point
 				while (temp_distance_diff <= 0) {
@@ -1555,15 +1669,87 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 						currentSPLng = im.getCurrentSP().getLongitude();
 						nextSPLat = im.getNextSP().getLatitude();
 						nextSPLng = im.getNextSP().getLongitude();
-
-						// bearing calculation
-						double X = Math.cos(nextSPLat) * Math.sin(nextSPLng - currentSPLng);
-						double Y = (Math.cos(currentSPLat) * Math.sin(nextSPLat)) - (Math.sin(currentSPLat) * Math.cos(nextSPLat) * Math.cos(nextSPLng - currentSPLng));
-
-
 					}
+					currentSPLat = im.getCurrentSP().getLatitude();
+					currentSPLng = im.getCurrentSP().getLongitude();
+						//Look for our intersection here
+						//Step1: find the segment that would contain our current Point **find_shapePoint() does that
+						//We shd have a flag here that is ::crossed=undefined initially to call find_shapePoint()
+						//then crossed::true if we have crossed an intersection and we call find_shapePoint()
+						//crossed::false from the point we have found the segment to the point that we have crossed it.
+						segment_no =  find_shapePoint(currentSPLat,currentSPLng);
+
+						GeoPoint spArray[] = routeSegments.get(segment_no).getShapePoints();
+						float[] distance_tl = new float[1];
+						Location.distanceBetween(lat, lng, routeSegments.get(segment_no).getEndPoint().getLatitude(), routeSegments.get(segment_no).getEndPoint().getLongitude(), distance_tl);
+						//This means that we are in range of the last pt in the segment ergo: An Intersection
+						if(distance_tl[0]<=40)
+						{
+							//Here we will do our usual TL detection and count down till we cross
+
+							//Calculate distance and display
+							skip_calculate_rows = false;
+							dis = calculateDistance(lat, lng, routeSegments.get(segment_no).getEndPoint().getLatitude(), routeSegments.get(segment_no).getEndPoint().getLongitude());
+							String t = String.valueOf(dis);
+							addstatus(t);
+							//Chris: when we cross set the flag to crossed and then do find_shapepoint to find the new segment
+							//else we donot need to keep searching for the shapePoint in a segment once we have a position.
+						}
+						//Here we are going to start detecting unknown intersection by focusing on indices
+						else
+						{
+							//Here we will do Lynn's detection assuming there might be intersections and we
+							//donot know about
+							//Step 1: get the indices of the points that are closer to our current point
+							// Method to find all indices within a distance range for searching all the time
+							getIndices(segment_no,currentSPLat,currentSPLng);
+							if(indices.size()>0)
+							{
+								//Find the min and max boundary for our current point
+									//find the distance and convert to CM
+								float[] distance_between_pts1 = new float[1];
+								float[] distance_between_pts2 = new float[1];
+								Location.distanceBetween(currentSPLat, currentSPLng, spArray[(int)indices.get(0)].getLatitude(),spArray[(int)indices.get(0)].getLongitude(), distance_between_pts1);
+
+								if(indices.size()==1)
+								{
+									// Here i am checking if there is only one index (only one point in range) then we give a dummy distance to the second to get the max_row
+									distance_between_pts2[0] = distance_between_pts1[0]>20?10:40;
+								}
+								else {
+									//Here we have another point in range and thus would pass the second distance
+									Location.distanceBetween(currentSPLat, currentSPLng, spArray[(int) indices.get(1)].getLatitude(), spArray[(int) indices.get(1)].getLongitude(), distance_between_pts2);
+								}
+								skip_calculate_rows = true;
+									//Convert distances to cm and get min row
+								double min_row= Calculate_rows((int)(distance_between_pts1[0]*100),"min row");
+								double max_row= Calculate_rows((int)(distance_between_pts2[0]*100), "max row");
+
+								//Here we can just assign values to min_row_bound and max_row_bound
+								//And set a flag to jump over the Calculate_rows() in OnCameraFrame()
+								min_row_bound = min_row;
+								max_row_bound = max_row;
+
+								//Here check if currentSpLat and Lng are the same as Lat nd Lng from the array
+								//if so then delete the index
+								if(currentSPLat == spArray[(int)indices.get(0)].getLatitude() && currentSPLng ==  spArray[(int)indices.get(0)].getLongitude()) {
+									indices.remove(0);
+								}
+								if( spArray[(int)indices.get(1)]!=null) {
+									if (currentSPLat == spArray[(int) indices.get(1)].getLatitude() && currentSPLng == spArray[(int) indices.get(1)].getLongitude()) {
+										indices.remove(1);
+									}
+								}
+							}
+
+						}
+						// bearing calculation
+						//double X = Math.cos(nextSPLat) * Math.sin(nextSPLng - currentSPLng);
+						//double Y = (Math.cos(currentSPLat) * Math.sin(nextSPLat)) - (Math.sin(currentSPLat) * Math.cos(nextSPLat) * Math.cos(nextSPLng - currentSPLng));
+
+
+
 				}
-					// if no shape points left set bearing to -1 to signify no bearing available
 
 			}
 			// Check if the instruction manager has been initialized already
@@ -1617,27 +1803,27 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				//	String t= String.valueOf(distanceDP2);//+ String.valueOf(results[0]); //String.valueOf(results[0])
 				//	addstatus(t); //checking the distance in mts
 				// Log the distances
-				int f = 1;
+		/*		int f = 1;
 				if (sig_flag == -1) {
 					f = im.findSignal();
 					sig_flag = 1;
 				}
-				double dptllat = 0, dptllong = 0;
+				double dptllat = 0, dptllong = 0;*/
 
 				//	GeoPoint nexttl = new GeoPoint((int) (im.tllat * 1e6), (int) (im.ltlong * 1e6));
 
 				//	GeoPoint l = new GeoPoint((int) (lat * 1e6), (int) (lng * 1e6));
 
-				GeoPoint nexttl = new GeoPoint((int) (im.tllat * 1e6), (int) (im.ltlong * 1e6));
+			//	GeoPoint nexttl = new GeoPoint((int) (im.tllat * 1e6), (int) (im.ltlong * 1e6));
 
-				GeoPoint l = new GeoPoint((int) ((37.654012) * 1e6), (int) ((-122.053441) * 1e6));
-				if (f == 1) {
+			//	GeoPoint l = new GeoPoint((int) ((37.654012) * 1e6), (int) ((-122.053441) * 1e6));
+				/*if (f == 1) {
 					//	Toast.makeText(getApplicationContext(), "Found signal at ! " + nexttl.getLatitude() + "long: " + nexttl.getLongitude(), Toast.LENGTH_SHORT).show();
 					//	Location.distanceBetween(dptllat, dptllong, lat, lng, tldis);
 
 					//Old method with alot of error
 
-/*				double x = (nexttl.getLongitude() - l.getLongitude()) * Math.cos((l.getLatitude() + nexttl.getLatitude()) / 2);
+*//*				double x = (nexttl.getLongitude() - l.getLongitude()) * Math.cos((l.getLatitude() + nexttl.getLatitude()) / 2);
 				double y = (nexttl.getLatitude() - l.getLatitude());
 				double dis = Math.sqrt(x * x + y * y) * r;
 
@@ -1647,14 +1833,14 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				x_dis = x_dis.replaceAll("\\D+","");
 				int new_dis = Integer.parseInt(x_dis);
 				//	int new_dis=Integer.parseInt(String.valueOf(dis).substring(3));
-				String t = String.valueOf(new_dis);*/
+				String t = String.valueOf(new_dis);*//*
 
 					//Haversine Formula
 					//37.654012, -122.053441
-					dis = calculateDistance(lat, lng, im.tllat, im.ltlong);
-					String t = String.valueOf(dis);
-					addstatus(t);
-				}
+			//		dis = calculateDistance(lat, lng, im.tllat, im.ltlong);
+			//		String t = String.valueOf(dis);
+			//		addstatus(t);
+				}*/
 
 				String distancesString = "LastDistanceDP1: " + lastDistanceDP1
 						+ " | distanceDP1: " + distanceDP1 + " | LastDistanceDP2: "

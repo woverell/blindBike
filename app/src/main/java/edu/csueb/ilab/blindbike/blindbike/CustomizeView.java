@@ -3,6 +3,7 @@ package edu.csueb.ilab.blindbike.blindbike;
 import android.content.Context;
 import android.hardware.Camera;
 import android.util.AttributeSet;
+import android.util.Log;
 
 import org.opencv.android.JavaCameraView;
 
@@ -42,12 +43,12 @@ public class CustomizeView extends JavaCameraView{
 
 
         Camera.Parameters params = mCamera.getParameters();
-   /*     List<int[]> frameRates = params.getSupportedPreviewFpsRange();
-        Log.e("frameRates","JUST SEE THE LIST");
+        List<int[]> frameRates = params.getSupportedPreviewFpsRange();
+  /*      Log.e("frameRates","JUST SEE THE LIST");
         for (int[] rates : frameRates) {
             Log.e("min : ", "max :"+ rates[0] + rates[1]);
         }*/
-        params.setPreviewFpsRange((int)(10000),(int)(12000));
+        params.setPreviewFpsRange((int)(min),(int)(max));
         mCamera.setParameters(params);
     }
 

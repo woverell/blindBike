@@ -57,8 +57,7 @@ public class Route {
 		GeoPoint[] decisionPoints;
 		double[] distances;
 		int[] shapePointIndexes;
-		// to house the heights for each shape Point
-		double elevation[];
+		// to house the heights for each shape Point elevation[]
 
 		// Extract the guidance information out of the raw JSON file
 		try {
@@ -167,6 +166,7 @@ public class Route {
 		}
 
 		GeoPoint[] tempShapePointArray = Arrays.copyOfRange(decisionPoints, shapePointIndexes[linkIndexes[0]], shapePointIndexes[linkIndexes[0]]);
+
 		RouteSegment firstSegment = new RouteSegment(null, firstDecisionPoint,
 				maneuvers[0], (int) firstDistance, tempShapePointArray);
 		this.segments.add(firstSegment);

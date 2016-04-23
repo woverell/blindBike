@@ -32,6 +32,8 @@ public class RouteSegment {
 	/**
 	 * Shape points for each segment*/
 	private GeoPoint[] shapePoints;
+
+
 	/**
 	 * Constructor of the RouteSegment class
 	 * 
@@ -51,6 +53,7 @@ public class RouteSegment {
 		this.maneuverType = maneuverType;
 		this.distance = distance;
 		this.shapePoints = shapePoints;
+
 	}
 
 	/**
@@ -85,4 +88,5 @@ public class RouteSegment {
 	public GeoPoint[] getShapePoints(){
 		return this.shapePoints;
 	}
+
 }
