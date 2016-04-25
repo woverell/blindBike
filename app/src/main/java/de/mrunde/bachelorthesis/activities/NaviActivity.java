@@ -27,7 +27,9 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -968,6 +970,15 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// CALL ROAD FOLLOWING(William)
 		// and update the directions to be given to the user
 		this.directionsText = globalRF.processFrame(mRgba, this.desiredBearing, this.currentBearing);
+		/*Mat src_mat=new Mat(4,1,CvType.CV_32FC2);
+		Mat dst_mat=new Mat(4,1, CvType.CV_32FC2);
+
+		// Source points
+		src_mat.put(0,0, 0.0, mRgba.height(),mRgba.width(),mRgba.height(),210, 140, 120, 140);
+		dst_mat.put(0,0, 0.0, mRgba.height(), mRgba.width(), mRgba.height(), mRgba.width(), 0, 0.0, 0.0);
+		Mat perspectiveTransform = Imgproc.getPerspectiveTransform(src_mat, dst_mat);
+		Mat dst=mRgba.clone();
+		Imgproc.warpPerspective(mRgba, dst, perspectiveTransform, dst.size());*/
 
 		return mRgba;
 	}

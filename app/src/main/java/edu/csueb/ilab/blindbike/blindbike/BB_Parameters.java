@@ -53,10 +53,10 @@ public class BB_Parameters {
 
 
     // If test_mode true then we process on testImage rather than camera images
-    public static final boolean test_mode = true;
+    public static final boolean test_mode = false;
 
     // Image to use in test_mode
-    public static int testImage = R.drawable.roadtest3;
+    public static int testImage = R.drawable.si_35;
 
     // Parameter for Small Blob Elimination Step (Step 7.1)
     // Based on birds eye view geometry which we dont have 10 columns filling aprox 280 pixel high image would be 2800
@@ -100,7 +100,7 @@ public class BB_Parameters {
 
     public static final boolean displayHoughLines = true;
 
-    public static final boolean displayBinaryContourImage = true;
+    public static final boolean displayBinaryContourImage = false;
 
     // Parameter for erosion/dilation value of roadBinaryImage
     public static final boolean perform_Erosion_Dilation = false;
@@ -127,6 +127,12 @@ public class BB_Parameters {
     // Angle of 0 or 180 is vertical line
     public static final int lineSelectionAngleRangeLow = 45; // decrease this to narrow range (min 1)
     public static final int lineSelectionAngleRangeHigh = 135; // increase this to narrow range (max 179)
+
+    // Algorithm selection for rightmost line selection
+    // 1 - pick line with positive slope(pointing to top left) that has endpoints on avg furthest right
+    // 2 - pick line that intersects the bottom row of the image furthest to the right
+    // 3 - pick line that intersects the middle row of the image closest to the center of the image
+    public static final int rightMostLineSelectionOption = 1;
 
     // Merge direction thresholds
     public static int leftOfCenterThreshold;

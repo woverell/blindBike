@@ -13,6 +13,7 @@ import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
 import edu.csueb.ilab.blindbike.blindbike.BB_Parameters;
@@ -70,8 +71,14 @@ public class Filter_Utility {
      * @return 2d array representing labeled image of classes
      */
     static void classifyImageIntoDataClasses(Vector<GMM> gmms, Mat img, Mat roadBinaryImage, int[][] classArray){
+        byte buff1[] = new byte[(int)img.total() * img.channels()]; // to store original img
+        byte buff2[] = new byte[(int)roadBinaryImage.total() * roadBinaryImage.channels()]; // to store roadBinaryImage
 
-            int count_NO_CLASS = 0;
+        // copy img into buff1
+        img.get(0,0, buff1);
+
+        //String test = img.dump();
+
             int count_Classes[] = new int[gmms.size()];
 
             for(int c =0; c< gmms.size(); c++)
@@ -79,18 +86,24 @@ public class Filter_Utility {
 
             // Step 1: Cycle through every feature vector (each feature vector corresponds to a pixel)
             // and classify it using the GMMs, one GMM per data class (one gmm for sky, one for road, ...)
-            Mat nextFeatureVector;
             double[] sample = new double[BB_Parameters.featureVectorDimension];
-            int rowNum = 0;
-            int colNum = 0;
 
-            nextFeatureVector = img;
-            for(int i = 0; i < nextFeatureVector.rows(); i++){
-                for(int j = 0; j < nextFeatureVector.cols(); j++){
+            for(int i = 0; i < img.rows(); i++){
+                for(int j = 0; j < img.cols(); j++){
                     // WILLIAM: SWITCHING RGB TO BGR -- gmm uses order of b,g,r not the traditional r,g,b
-                    sample[2] = nextFeatureVector.get(i, j)[0]; // R
+                    sample[2] = buff1[(i*img.cols()*4)+(j*4)+0] & 0xFF;
+                    sample[1] = buff1[(i*img.cols()*4)+(j*4)+1] & 0xFF;
+                    sample[0] = buff1[(i*img.cols()*4)+(j*4)+2] & 0xFF;
+                    /*sample[2] = nextFeatureVector.get(i, j)[0]; // R
                     sample[1] = nextFeatureVector.get(i, j)[1]; // G
                     sample[0] = nextFeatureVector.get(i, j)[2]; // B
+                    test1 = buff1[(i*img.cols()*4)+(j*4)+0] & 0xFF;
+                    test2 = buff1[(i*img.cols()*4)+(j*4)+1] & 0xFF;
+                    test3 = buff1[(i*img.cols()*4)+(j*4)+2] & 0xFF;
+                    if(test1 != (int)sample[2] || test2 != (int)sample[1] || test3 != (int)sample[0])
+                        Log.i("buff_test", "FAIL");
+                    else
+                        Log.i("buff_test","SUCCEED");*/
 
                     // Cycle through GMM list to figure out which class has the highest probability
                     double max = -10;
@@ -110,43 +123,36 @@ public class Filter_Utility {
                     //SOme counting AND
                     //create binary image of road/not road pixels for future processing
                     if(class_index == -1 ) {
-                        count_NO_CLASS += 1;
-                        roadBinaryImage.put(i, j, 0);
+                        //roadBinaryImage.put(i, j, 0);
+                        buff2[i*img.cols()+j] = 0;
                     }
                     else {
                         count_Classes[class_index] += 1;
-                        if (class_index == 1) //MEANS WE ALWAYS need to keep this meaning road
-                            roadBinaryImage.put(i, j, 255);
-                        else
-                            roadBinaryImage.put(i,j,0);
+                        if (class_index == 1) { //MEANS WE ALWAYS need to keep this meaning road
+                            //roadBinaryImage.put(i, j, 255);
+                            buff2[i*img.cols()+j] = -1;
+                        }
+                        else {
+                           //roadBinaryImage.put(i, j, 0);
+                            buff2[i*img.cols()+j] = 0;
+                        }
                     }
-                    classArray[rowNum][colNum] = class_index;
-
-
-                    colNum++;
-                    if(colNum%img.cols() == 0){
-                        colNum = 0;
-                        rowNum++;
-                    }
-
+                    classArray[i][j] = class_index;
                 }
             }
 
+        roadBinaryImage.put(0,0,buff2); // put the buffer in the roadBinaryImage
         //return classArray;
     }
 
     /**
      * Classify the pixels of the image based on their feature vectors into 0 - no class or
-     * 255 - the class.  The class represented by the gmm.
+     * 255 - the class.  The class represented by the fixed range model.  NOT IMPLEMENTED
      * @param fixedRangeModel
      * @param inputImg
      * @param outputImg
      */
-    static int[][] classifyImageIntoDataClass(ClassedMultipleFixedRangeModel fixedRangeModel, Mat inputImg, Mat outputImg) {
-
-        int[][] classArray = new int[inputImg.rows()][inputImg.cols()];
-
-        return classArray;
+    static void classifyImageIntoDataClass(ClassedMultipleFixedRangeModel fixedRangeModel, Mat inputImg, Mat outputImg, int[][] classArray) {
 
     }
 
@@ -160,22 +166,12 @@ public class Filter_Utility {
      * @param img
      * @return 2d array representing labeled image of classes
      */
-    static int[][] classifyImageIntoDataClasses(Vector<ClassedMultipleFixedRangeModel> fixedRangeModels, Mat img, Mat roadBinaryImage, int ignore){
-
-        int[][] classArray = null;
-        int imgHeight = -1;
-        int imgWidth = -1;
-
+    static int[][] classifyImageIntoDataClasses(Vector<ClassedMultipleFixedRangeModel> fixedRangeModels, Mat img, Mat roadBinaryImage, int[][]classArray, int ignore){
         int count_NO_CLASS = 0;
         int count_Classes[] = new int[fixedRangeModels.size()];
 
         for(int c =0; c< fixedRangeModels.size(); c++)
             count_Classes[c] = 0;
-
-
-        imgHeight = img.rows();
-        imgWidth = img.cols();
-        classArray = new int[imgHeight][imgWidth];
 
         // Step 1: Cycle through every feature vector (each feature vector corresponds to a pixel)
         // and classify it using the fixedRangeModels, one fixedRangeModel per data class (one gmm for sky, one for road, ...)
@@ -243,7 +239,7 @@ public class Filter_Utility {
 
 
                 colNum++;
-                if(colNum%imgWidth == 0){
+                if(colNum%img.cols() == 0){
                     colNum = 0;
                     rowNum++;
                 }

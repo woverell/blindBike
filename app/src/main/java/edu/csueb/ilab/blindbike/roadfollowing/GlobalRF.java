@@ -100,6 +100,8 @@ public class GlobalRF {
     Mat hierarchy;
     Rect boundingRect;
 
+    List<MatOfPoint> contours; // This will store the contours
+
     java.util.Random pseudoColorRandom;
 
     Vector<GMM> gmms;
@@ -125,7 +127,9 @@ public class GlobalRF {
 
         heightCutoff = (int)(BB_Parameters.cutOff_Area_Of_Interest * BB_Parameters.scaleFactor_height); // adjusting for scale
 
-        labeledImage = new int[heightCutoff][roadBinaryImage.cols()]; // initialize the labeledImage
+        labeledImage = new int[roadBinaryImage.rows()][roadBinaryImage.cols()]; // initialize the labeledImage
+
+        contours = new ArrayList<MatOfPoint>(); // initialize the contours
 
         if(BB_Parameters.classifyByMultipleClasses == true)
             gmms = Filter_Utility.readParametersForMixtureOfGaussiansForAllDataClasses("gmmFileForAllDataClasses.dat", context, BB_Parameters.std_dev_range_factor);
@@ -211,12 +215,12 @@ public class GlobalRF {
         if(BB_Parameters.classifyByMultipleClasses == true) {
             if(BB_Parameters.classifyByGMM_NOT_FixedRange == true)
             {
-                Filter_Utility.classifyImageIntoDataClasses(gmms, regionOfInterest, this.roadBinaryImage, labeledImage);
+                Filter_Utility.classifyImageIntoDataClasses(gmms, regionOfInterest, this.roadBinaryImage, labeledImage); // WILL: SLOW
                 if(BB_Parameters.adaptive_outlier_elimination)
                    labeledImage = Filter_Utility.adaptiveOutlierElimination(BB_Parameters.road_class_index, labeledImage, gmms,regionOfInterest,this.roadBinaryImage);
             }
             else {
-                labeledImage = Filter_Utility.classifyImageIntoDataClasses(fixedRangeModels, regionOfInterest, this.roadBinaryImage, 1);
+                Filter_Utility.classifyImageIntoDataClasses(fixedRangeModels, regionOfInterest, this.roadBinaryImage, labeledImage, 1);
                 if(BB_Parameters.adaptive_outlier_elimination)
                     labeledImage = Filter_Utility.adaptiveOutlierElimination(BB_Parameters.road_class_index, labeledImage, fixedRangeModels,regionOfInterest,this.roadBinaryImage,1);
             }
@@ -228,7 +232,7 @@ public class GlobalRF {
                 if(BB_Parameters.adaptive_outlier_elimination)
                     labeledImage = Filter_Utility.adaptiveOutlierElimination(BB_Parameters.road_class_index, labeledImage, gmms,regionOfInterest,this.roadBinaryImage);
             }else {
-                labeledImage = Filter_Utility.classifyImageIntoDataClass(fixedRangeModels.elementAt(BB_Parameters.road_class_index), regionOfInterest, this.roadBinaryImage);
+                Filter_Utility.classifyImageIntoDataClass(fixedRangeModels.elementAt(BB_Parameters.road_class_index), regionOfInterest, this.roadBinaryImage, labeledImage); // WILL: NOT IMPLEMENTED
                 if(BB_Parameters.adaptive_outlier_elimination)
                     labeledImage = Filter_Utility.adaptiveOutlierElimination(BB_Parameters.road_class_index, labeledImage, fixedRangeModels,regionOfInterest,this.roadBinaryImage, 1);
             }
@@ -242,7 +246,7 @@ public class GlobalRF {
                 Filter_Utility.createPseudoImage(labeledImage, fixedRangeModels, regionOfInterest, 1);
             }
 
-        // If stageToDisplay set to 2 then display the roadBinaryImage
+        // If display road binary image set then display the roadBinaryImage
         if (BB_Parameters.displayRoadBinaryImage == true) {
             if(BB_Parameters.classifyByGMM_NOT_FixedRange)
                 Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, gmms.elementAt(BB_Parameters.road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
@@ -251,7 +255,7 @@ public class GlobalRF {
         }
 
         // PHASE 6: Blob Detection
-        List<MatOfPoint> contours = new ArrayList<MatOfPoint>(); // This will store the contours
+        this.contours.clear(); // clear all old contours
 
         // Find Contours Notes: takes binary image as input, stores each contour as a MatOfPoint (all contours in contours list),
         // hierarchy contains information about the topology of the image(probably we don't need), mode is the contour retrieval
@@ -267,12 +271,12 @@ public class GlobalRF {
         }
 
         // Find contours in the roadBinaryImage
-        Imgproc.findContours(this.roadBinaryImage, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+        Imgproc.findContours(this.roadBinaryImage, this.contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
 
 
         // Phase 7: Identification of Road Blob
-        Iterator<MatOfPoint> each = contours.iterator(); // this will iterate through each contour
+        Iterator<MatOfPoint> each = this.contours.iterator(); // this will iterate through each contour
         MatOfPoint topContours[] = new MatOfPoint[2];
         double areaOfTopContours[] = new double[2];
         topContours[0] = null;
@@ -391,6 +395,9 @@ public class GlobalRF {
         this.topLinePt1 = null;
         this.topLinePt2 = null;
 
+        double intersection_col_at_bottom_row = regionOfInterest.width()/2; // intersection at bottom row
+        double intersection_col_at_middle_row_difference = regionOfInterest.width() / 2; // intersection at bottom row
+
         // Calculate the parameters for the top lines and determine which is the road edge
         // Loop through all the top voted lines
         for (int i = BB_Parameters.houghNumTopLines - 1; i >= 0; i--) {
@@ -416,19 +423,49 @@ public class GlobalRF {
                 // ---------------------------------------------------------
                 // if this is the first line
                 // and the slope is positive (because of inverted coordinate system, would be negative in traditional cartesian coords)
-                if(this.topLinePt1 == null && slope(pt1,pt2) > 0){
-                    this.topLinePt1 = pt1.clone();
-                    this.topLinePt2 = pt2.clone();
+                double slope_of_curr_line = slope(pt1, pt2); // slope of the current line
 
-                    road_edge_found = true; // signal a road edge was found
+                double temp_intersection_col_at_bottom_row = pt2.x + slope_of_curr_line*(regionOfInterest.height() - pt2.y);
+                double temp_intersection_col_at_middle_row_difference = Math.abs((regionOfInterest.width()/2) - (pt2.x + slope_of_curr_line*(regionOfInterest.height()/2 - pt2.y)));
 
-                // otherwise if this isn't the first line and it is further right and the slope is positive
-                // (because of inverted coordinate system, would be negative in traditional cartesian coords)
-                }else if(this.topLinePt1 != null && pt1.x + pt2.x >= topLinePt1.x + topLinePt2.x && slope(pt1, pt2) > 0){
-                    // if the current point is further right than the current top line then replace
-                    this.topLinePt1 = pt1.clone();
-                    this.topLinePt2 = pt2.clone();
+                if (BB_Parameters.rightMostLineSelectionOption == 1) {
+                    // OPTION 1 - average of endpoints furthest right
+                    if(this.topLinePt1 == null && slope_of_curr_line > 0){
+                        this.topLinePt1 = pt1.clone();
+                        this.topLinePt2 = pt2.clone();
+
+                        road_edge_found = true; // signal a road edge was found
+
+                    // otherwise if this isn't the first line and it is further right and the slope is positive
+                    // (because of inverted coordinate system, would be negative in traditional cartesian coords)
+                    }else if(this.topLinePt1 != null && pt1.x + pt2.x >= topLinePt1.x + topLinePt2.x && slope_of_curr_line > 0){
+                        // if the current point is further right than the current top line then replace
+                        this.topLinePt1 = pt1.clone();
+                        this.topLinePt2 = pt2.clone();
+                    }
+                }else if(BB_Parameters.rightMostLineSelectionOption == 2){
+                    // OPTION 2 - intersect bottom row furthest right
+                    // must have intersection greater than half the image width
+                    if(temp_intersection_col_at_bottom_row > intersection_col_at_bottom_row){
+                        intersection_col_at_bottom_row = temp_intersection_col_at_bottom_row;
+                        this.topLinePt1 = pt1.clone();
+                        this.topLinePt2 = pt2.clone();
+                        road_edge_found = true;
+                    }
+
+                }else if(BB_Parameters.rightMostLineSelectionOption == 3){
+                    // Option 3 - intersect middle row closest to middle
+                    // must have difference less than half the image width
+                    if(temp_intersection_col_at_middle_row_difference < intersection_col_at_middle_row_difference){
+                        intersection_col_at_middle_row_difference = temp_intersection_col_at_middle_row_difference;
+                        this.topLinePt1 = pt1.clone();
+                        this.topLinePt2 = pt2.clone();
+                        road_edge_found = true;
+                    }
                 }
+
+
+
                 // ----------------------------------------------------------
                 // --------------End Select "rightmost" line------------------
 
