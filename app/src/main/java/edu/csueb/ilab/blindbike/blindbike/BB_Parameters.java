@@ -56,7 +56,7 @@ public class BB_Parameters {
     public static final boolean test_mode = false;
 
     // Image to use in test_mode
-    public static int testImage = R.drawable.si_35;
+    public static int testImage = R.drawable.si_4;
 
     // Parameter for Small Blob Elimination Step (Step 7.1)
     // Based on birds eye view geometry which we dont have 10 columns filling aprox 280 pixel high image would be 2800
