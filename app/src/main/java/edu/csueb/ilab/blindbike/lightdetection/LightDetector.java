@@ -1,9 +1,15 @@
 package edu.csueb.ilab.blindbike.lightdetection;
 
+import android.app.Application;
+import android.content.Context;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Environment;
 import android.provider.Settings;
 import android.util.Log;
 
+import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
@@ -22,6 +28,9 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
+import de.mrunde.bachelorthesis.activities.NaviActivity;
+import edu.csueb.ilab.blindbike.blindbike.Navi_activity_fpscontrol;
+import edu.csueb.ilab.blindbike.blindbike.R;
 
 
 /**
@@ -63,20 +72,25 @@ public class LightDetector {
     //Status Found or not Found
     private String tl_status="";
 
+
+
+
+
     public void setColorRadius(Scalar radius) {
         mColorRadius = radius;
     }
+
+
+
+
+
+
 
     public void setHsvColor(Scalar hsvColor) {
         double minH = (hsvColor.val[0] >= mColorRadius.val[0]) ? hsvColor.val[0]-mColorRadius.val[0] : 0;
         double maxH = (hsvColor.val[0]+mColorRadius.val[0] <= 255) ? hsvColor.val[0]+mColorRadius.val[0] : 255;
 
-        dataclasses classArray[] = new dataclasses[4];
 
-        classArray[0] = new dataclasses(0, "other", 0,0,0);
-        classArray[1] =new dataclasses(1, "red_light", 255,0,0);
-        classArray[2] = new dataclasses(2, "green_light ", 0,255,0);
-        classArray[2] = new dataclasses(3, "yello_light", 255,255,0);
         //Red Perfect values 170 249 234 - 175 255 255
         //Green Perfect Values 60-15,100,100  - 60+15,255,255
         //Amber Perfect Values
@@ -111,7 +125,7 @@ public class LightDetector {
     }
 
     public void process(Mat rgbaImage) {
-        Scalar colorGreen=new Scalar(0, 128, 0);
+
 
 
         Imgproc.pyrDown(rgbaImage, mPyrDownMat);
@@ -252,11 +266,11 @@ public class LightDetector {
             Mat ROI = rgbaImage.submat(rect.y, rect.y + rect.height, rect.x, rect.x + rect.width);
 
             // Save the blob on SD card to see
-            save= Highgui.imwrite(filename,ROI);
+         /*   save= Highgui.imwrite(filename,ROI);
             if (save == true)
                 Log.i("Save Status", "SUCCESS writing image to external storage");
             else
-                Log.i("Save Status", "Fail writing image to external storage");
+                Log.i("Save Status", "Fail writing image to external storage");*/
 
             Core.rectangle(rgbaImage, new Point(rect.x,rect.y), new Point(rect.x+rect.width,rect.y+rect.height),new Scalar(255,225,0,0),3);
 
@@ -270,25 +284,6 @@ public class LightDetector {
     }
 
 
-    class dataclasses{
-        int label;
 
-        String className;
-
-        int[] pseudoColor = new int[3];
-        int[] pscolor = new int[3];
-
-
-        dataclasses(int l , String n, int r, int g, int b)
-        {
-            this. label =l;
-            this.className =n;
-            this.pseudoColor[0] = r;
-            this.pseudoColor[1] = g;
-            this.pseudoColor[2] = b;
-
-
-        }
-    }
 
 }

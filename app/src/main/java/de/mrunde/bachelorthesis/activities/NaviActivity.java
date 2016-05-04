@@ -1,14 +1,17 @@
 package de.mrunde.bachelorthesis.activities;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Vector;
@@ -28,6 +31,7 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
@@ -38,6 +42,7 @@ import org.opencv.core.Range;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
+import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
 import org.w3c.dom.Text;
 
@@ -47,6 +52,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.hardware.Sensor;
@@ -59,6 +66,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.TextToSpeech.OnInitListener;
@@ -431,7 +439,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		//Obtain references to the sensormanager and the Light Sensor
 		mSensorManager =(SensorManager)getSystemService(SENSOR_SERVICE);
 		mLightSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-		mPressureSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
+		//mPressureSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
 		SensorEventListener listener = new SensorEventListener() {
 
 			@Override
@@ -439,9 +447,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				// TODO Auto-generated method stub
 				//mLightQuantity is the value of Brightness
 				mLightQuantity = event.values[0];
-				float presure = event.values[0];
-				altitude = SensorManager.getAltitude(SensorManager.PRESSURE_STANDARD_ATMOSPHERE, presure);
-				Log.i("CHRIS: Altitude ",String.valueOf(altitude));
+				//float presure = event.values[0];
+				//altitude = SensorManager.getAltitude(SensorManager.PRESSURE_STANDARD_ATMOSPHERE, presure);
+				//Log.i("CHRIS: Altitude ",String.valueOf(altitude));
 			}
 
 			@Override
@@ -1135,12 +1143,14 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			mOpenCvCameraView.disableView();
 	}
 
+	private Mat dummy_Image;
 	public void onCameraViewStarted(int width, int height) {
 		mGray = new Mat();
 		mRgba = new Mat();
 		mRgbabright = new Mat();
 		mDetector = new LightDetector();
 		mSpectrum = new Mat();
+		dummy_Image = new Mat();
 		mBlobColorRgba = new Scalar(255);
 		mBlobColorHsv = new Scalar(255);
 		SPECTRUM_SIZE = new Size(200, 64);
@@ -1156,6 +1166,17 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			e.printStackTrace();
 		}
 
+		/*BitmapFactory.Options o = new BitmapFactory.Options();
+		o.inScaled = false;
+		Bitmap bmp = BitmapFactory.decodeResource(getResources(), R.drawable.img_red, o);
+		Utils.bitmapToMat(bmp, dummy_Image);
+*/
+		try {
+			dummy_Image = Utils.loadResource(getBaseContext(), R.drawable.img_green, Highgui.CV_LOAD_IMAGE_COLOR);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		//Imgproc.cvtColor(img, gryimg, Imgproc.COLOR_RGB2BGRA);
 	}
 	// This is a method for the general TL detection where we calculate min and max based on a distnace
 	double d;
@@ -1187,6 +1208,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			if(d==1903)	d=1900;
 			if(d==1899)	d=1900;
 
+
 			Tmin = (float) Math.toDegrees(Math.atan((r_min - b) / d));
 			sc_min = f * (Math.tan(Tmin));
 			Log.i("CHRIS Vals: ", String.valueOf(Math.tan(Tmin)));
@@ -1213,6 +1235,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			max_row_bound = max_row_bound + 100;
  			mIsColorSelected = true;
 		}
+		else if(d<=1000 && d>=800)
+		{
+			min_row_bound = 100;
+			max_row_bound = 360;
+		}
 		else
 		{
 			mIsColorSelected = false;
@@ -1223,7 +1250,133 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		mRgba.release();
 	}
 
-	int testi=0;
+	//Labeling code
+	//Data Classes objects
+	dataclasses classArray[] = new dataclasses[4];
+
+	SimpleDateFormat df= new SimpleDateFormat("yyyy_MM_dd_HH_mm_yyyy");
+
+	class dataclasses{
+		int label;
+
+		String className;
+
+		int[] pseudoColor = new int[3];
+		int[] pscolor = new int[3];
+
+
+		dataclasses(int l , String n, int r, int g, int b)
+		{
+			this.label =l;
+			this.className =n;
+			this.pseudoColor[0] = r;
+			this.pseudoColor[1] = g;
+			this.pseudoColor[2] = b;
+
+
+		}
+
+		private int getR(){
+			return pseudoColor[0];
+		}
+		private int getG(){
+			return pseudoColor[1];
+		}
+		private int getB(){
+			return pseudoColor[2];
+		}
+	}
+
+	public void setDataClasses(){
+		classArray[0] = new dataclasses(0, "other", 0,0,0);
+		classArray[1] =new dataclasses(1, "red_light", 170,249,234);
+		classArray[2] = new dataclasses(2, "green_light ", 45,100,100);
+		classArray[3] = new dataclasses(3, "yellow_light", 255,255,0);
+	}
+
+	public Mat setLabel(Mat LabelImage) {
+		setDataClasses();
+		int index = 0;
+
+		Mat Labelhsv = new Mat();
+		File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+		String filename = "christ_label" + df.format(new Date()).toString() + ".png";
+		File file = new File(path, filename);
+		filename = file.toString();
+		Boolean save;
+
+		//...do what you want..
+		//e.g. get the value of the 3rd element of 2nd row
+		//by mat.get(2,3);
+		Imgproc.cvtColor(LabelImage, Labelhsv, Imgproc.COLOR_BGR2HSV_FULL);
+		Mat img = LabelImage.clone();
+		Mat pseudoColor= Labelhsv.clone();
+		int i=0;
+		if(i==0) {
+			Core.inRange(Labelhsv, new Scalar(45, 70, 70), new Scalar(255, 255, 255), pseudoColor); //img_red 45, 150, 220 - 255, 255, 255 perfect for red
+			Imgproc.cvtColor(pseudoColor, img, Imgproc.COLOR_GRAY2BGRA);								//img_red1 45, 150, 150 - 255, 255, 255
+			save = Highgui.imwrite(filename, img);														//http://stackoverflow.com/questions/28570088/opencv-java-inrange-function
+			if (save == true)
+				Log.i("Save Status", "SUCCESS writing image to external storage");
+			else
+				Log.i("Save Status", "Fai3l writing image to external storage");
+			i = 1;
+		}
+		/*if(i==1)Core.inRange(Labelhsv,new Scalar(45,150,150),new Scalar(220,255,255),pseudoColor);
+		Imgproc.cvtColor(pseudoColor, img, Imgproc.COLOR_GRAY2BGRA);
+		save = Highgui.imwrite(filename, img);
+		if (save == true)
+			Log.i("Save Status", "SUCCESS writing image to external storage");
+		else
+			Log.i("Save Status", "Fai3l writing image to external storage");*/
+		/*for (int i = 0; i < Labelhsv.cols(); i++) {						// i =col and j = row
+            for (int j = 0; j < Labelhsv.rows(); j++) {
+                double[] data = Labelhsv.get(j, i); //Stores element in an array
+
+                    //data[k] = data[k] * 2; //Pixel modification done here
+                    //for Red
+					if(data[0]>=170 && data[0]<=175) {
+						if (data[1] >= 249 && data[1] <= 255)
+							if (data[2] >= 234 && data[2] <= 255) {
+								data[0] = classArray[1].pseudoColor[0];
+								data[1] = classArray[1].pseudoColor[1];
+								data[2] = classArray[1].pseudoColor[2];
+							}
+					}
+					else if(data[0]>=45 && data[0]<=75) {
+								if (data[1] >= 100 && data[1] <= 255)
+									if (data[2] >= 100 && data[2] <= 255) {
+										data[0] = classArray[2].pseudoColor[0];
+										data[1] = classArray[2].pseudoColor[1];
+										data[2] = classArray[2].pseudoColor[2];
+									}
+							}
+					else if(data[0]==classArray[2].getR()) {
+							if (data[1] == classArray[2].getG())
+								if (data[2] == classArray[2].getB()) {
+									data[0] = classArray[3].pseudoColor[0];
+									data[1] = classArray[3].pseudoColor[1];
+									data[2] = classArray[3].pseudoColor[2];
+							}
+					}//for other
+					else
+					{
+								data[0] = classArray[0].pseudoColor[0];
+								data[1] = classArray[0].pseudoColor[1];
+								data[2] = classArray[0].pseudoColor[2];
+					}
+
+                img.put(j, i, data); //Puts element back into matrix
+            }
+        }*/
+//		Highgui.imwrite("Output.jpg", img); //Writes image back to the file system using values of t
+
+		//pseudoImage[pixel] = classArray[index].psuedColor;
+
+		return img;
+	}
+	//end labeling code
+
 	public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 
 		// ****** I have my detection module in here ***********//
@@ -1231,9 +1384,21 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		//adding brightness for dark conditions
 		//mRgba.convertTo(mRgbabright,-1,4,50);
 
+
+		//for labeling
+		//this.dummy_Image.copyTo(mRgba);
+		//labeling end
+
+		//Mat img = setLabel(mRgba);
 		mRgbabright=mRgba.clone();
 		int cols = mRgbabright.cols();
 		int rows = mRgbabright.rows();
+
+
+
+		Scalar colorGreen=new Scalar(0, 128, 0);
+
+
 
 		//trying actual cropping
 		/*String w=String.valueOf(mRgbabright.rows()/2);
@@ -1735,11 +1900,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 								if(currentSPLat == spArray[(int)indices.get(0)].getLatitude() && currentSPLng ==  spArray[(int)indices.get(0)].getLongitude()) {
 									indices.remove(0);
 								}
-								if( spArray[(int)indices.get(1)]!=null) {
+								/*if( spArray[(int)indices.get(1)]!=null) {
 									if (currentSPLat == spArray[(int) indices.get(1)].getLatitude() && currentSPLng == spArray[(int) indices.get(1)].getLongitude()) {
 										indices.remove(1);
 									}
-								}
+								}*/
 							}
 
 						}
