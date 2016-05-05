@@ -1386,10 +1386,11 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 
 		//for labeling
-		//this.dummy_Image.copyTo(mRgba);
+		this.dummy_Image.copyTo(mRgba);
+		Mat img = setLabel(mRgba);
 		//labeling end
 
-		//Mat img = setLabel(mRgba);
+
 		mRgbabright=mRgba.clone();
 		int cols = mRgbabright.cols();
 		int rows = mRgbabright.rows();
