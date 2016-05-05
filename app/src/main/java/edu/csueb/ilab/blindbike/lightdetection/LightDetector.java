@@ -50,9 +50,7 @@ public class LightDetector {
     private Scalar mLowerBound = new Scalar(0); 	//for blue 120,100,100 Current: 176,255,244 ::perfect working Green 70,20,100
     // for flouracent green light 57,255,20
     private Scalar mUpperBound = new Scalar(0); 	// for blue 179,255,255 , blue cap 28,28,37 Current: 177,255,252:: perfect working Green 85,35,125
-    // for flouracent green light 57,255,200
-    // for gray signs 76,55,28
-    // for gray signs 89,62,33 ,blue cap 80,109,149
+
     // Minimum contour area in percent for contours filtering
     private static double mMinContourArea = 0.01; //<></>ried 0.4
     // Color radius for range checking in HSV color space
@@ -172,7 +170,7 @@ public class LightDetector {
                 mLowerBound.val[3] = 0;
                 mUpperBound.val[3] = 255;
                 tl_status = "Set Green";
-                tl_flag="GREEN";
+             //   tl_flag="GREEN";
             }
             else if(tl_status.equalsIgnoreCase("Set Green") && contours.size()==0)
             {
@@ -188,7 +186,7 @@ public class LightDetector {
                 mLowerBound.val[3] = 0;
                 mUpperBound.val[3] = 255;
                 tl_status = "Set Red";
-                tl_flag="RED";
+               // tl_flag="RED";
 
             }
         }
@@ -237,17 +235,29 @@ public class LightDetector {
             Log.i("CHRIS: Points Length",String.valueOf(points.toArray().length));
             //see if we can detect circular blobs
             //perfect sol stackoverflow.com/questions/20176768/opencv4android-detect-shape-and-color-hsv
-            if( points.toArray().length == 5)
+            /*if( points.toArray().length == 5)
             {
                 Log.i("CHRIS: Points Shape","Pentagon");
 
             }
-            else if(points.toArray().length > 5)
+            else*/
+
+            //This will verify if the blob is circular in shape
+            if(points.toArray().length > 5)
             {
                Log.i("CHRIS: Points Shape","Circle");
-
+                //The if values signify that it is a red circular blob and the else if for Green circular blob
+                if(mLowerBound.val[0] == 170 &&  mUpperBound.val[0] == 175 && mLowerBound.val[1] == 249 && mUpperBound.val[1] == 255 && mLowerBound.val[2] == 234 && mUpperBound.val[2] == 255){
+                    //here we set the flag which is used by Navi_activity to set display and audio instructions for the user
+                    tl_flag="RED";
+                }
+                else if(mLowerBound.val[0] == 60-15 &&  mUpperBound.val[0] == 60+15 && mLowerBound.val[1] == 100 && mUpperBound.val[1] == 255 && mLowerBound.val[2] == 100 && mUpperBound.val[2] == 255)
+                {
+                    //here we set the flag which is used by Navi_activity to set display and audio instructions for the user
+                    tl_flag="GREEN";
+                }
             }
-            else if(points.toArray().length == 4)
+            /*else if(points.toArray().length == 4)
             {
                 Log.i("CHRIS: Points Shape","Square");
 
@@ -256,7 +266,7 @@ public class LightDetector {
             {
                 Log.i("CHRIS: Points Shape","Triangle");
 
-            }
+            }*/
 
 
             //Get Bounding rect of contour
