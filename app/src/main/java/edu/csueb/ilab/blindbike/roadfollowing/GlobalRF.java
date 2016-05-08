@@ -182,22 +182,38 @@ public class GlobalRF {
     }
 
     /**
-     * This method accepts as input an rgba image frame and finds a road edge.
+     * This method accepts as input an rgba image frame, desired bearing, and measured bearing
+     * and finds a road edge.
      * First each pixel in imgFrame inside the region of interest (set in BB_Parameters)
      * is classified into classes(road, sky, lane line, unknown).  During this process a
      * pseudo color image is created and the calculation/display of this can be toggled
      * on/off in BB_Parameters.java using the pseudo_Calculation parameter.
      *
      * @param imgFrame
+     * @param desiredBearing
+     * @param measuredBearing
+     * @return
      */
     public String processFrame(Mat imgFrame, double desiredBearing, double measuredBearing) {
         boolean road_edge_found = false; // will be true if road edge found in this frame
         int desired_measured_bearing_difference = 0; // set the default bearing difference to 0
 
+        // Initialize hough space to 0's
+        outputData.clear();
+
         // if the bearings are available calculate the difference
         if(desiredBearing >= 0 && measuredBearing >= 0) {
             // The difference between the desired and measured bearing
+            // angle measured from measuredBearing to desiredBearing
+            // so if desiredBearning is to the left of measuredBearing will be negative
+            // otherwise positived
             desired_measured_bearing_difference = angle_difference(measuredBearing, desiredBearing);
+
+            // If the bearing difference is above the threshold then tell user to perform orientation change
+            // Do not process frame
+            /*if(Math.abs(desired_measured_bearing_difference) >= BB_Parameters.bearing_offset_orientation_change_cutoff){
+                return "ORIENTATION CHANGE";
+            }*/
         }
         // if the image is empty then don't process anything or if stage to display is original image
         if(imgFrame.empty())
@@ -206,6 +222,7 @@ public class GlobalRF {
         // PHASE 3: Area of Interest
         // regionOfInterest is a submat of imgFrame, any changes to regionOfInterest will change imgFrame
         Mat regionOfInterest = imgFrame.submat(this.heightCutoff, imgFrame.height(), 0, imgFrame.width());
+        Mat originalRegionOfInterestClone = regionOfInterest.clone();
 
         // PHASE 4: Homographic Transform (TBD)
 
@@ -375,17 +392,45 @@ public class GlobalRF {
 
         // If a desired bearing is not set then use the default parameters for hough lines for angle selection
         if(desiredBearing < 0) {
-            Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform);
+            // Choose the correct hough space calculation method
+            if(BB_Parameters.houghMethodNumber == 0)
+                Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform);
+            else if(BB_Parameters.houghMethodNumber == 1)
+                Hough_Lines.houghTransformVerticalLinesMagnifyThetaWithColorChecking(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform, originalRegionOfInterestClone, BB_Parameters.houghAngleRangeNeighborhoodSize);
+            else if(BB_Parameters.houghMethodNumber == 2)
+                Hough_Lines.houghTransformVerticalLinesEliminateThetaWithColorChecking(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform, originalRegionOfInterestClone, BB_Parameters.houghAngleRangeNeighborhoodSize);
+            else if(BB_Parameters.houghMethodNumber == 3)
+                Hough_Lines.houghTransformVerticalLinesMagnifyThetaWithBinaryRoadImage(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform, this.roadBinaryImage, BB_Parameters.houghAngleRangeNeighborhoodSize);
+            else if(BB_Parameters.houghMethodNumber == 4)
+                Hough_Lines.houghTransformVerticalLinesEliminateThetaWithBinaryRoadImage(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform, this.roadBinaryImage, BB_Parameters.houghAngleRangeNeighborhoodSize);
 
+            if(BB_Parameters.writeHoughToFile)
+                outputData.toImage();
         // otherwise use the desired bearing and the current bearing to find lines in the expected range
         }else{
             // if the angle difference is less than 45 degrees then adjust the hough detector angle window to accomodate
             // if the angle difference is greater than 45 degrees it should have already been caught by orientation adjustment
-            if(Math.abs(desired_measured_bearing_difference) <= 45)
-                Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow + desired_measured_bearing_difference, BB_Parameters.lineSelectionAngleRangeHigh + desired_measured_bearing_difference, BB_Parameters.ignoreEdgesInHoughTransform);
-        }
-        linesData = Hough_Lines.findLines(outputData, binaryContourImage.height(), binaryContourImage.width(), BB_Parameters.houghNumTopLines, BB_Parameters.houghMinNumVotes, BB_Parameters.houghNeighborhoodSize);
+            if(Math.abs(desired_measured_bearing_difference) <= 45) {
+                // Choose the correct hough space calculation method
+                if(BB_Parameters.houghMethodNumber == 0)
+                    Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow + desired_measured_bearing_difference, BB_Parameters.lineSelectionAngleRangeHigh + desired_measured_bearing_difference, BB_Parameters.ignoreEdgesInHoughTransform);
+                if(BB_Parameters.houghMethodNumber == 1)
+                    Hough_Lines.houghTransformVerticalLinesMagnifyThetaWithColorChecking(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow + BB_Parameters.lineSelectionAngleRangeLow + BB_Parameters.lineSelectionAngleRangeLow + desired_measured_bearing_difference, BB_Parameters.lineSelectionAngleRangeHigh + desired_measured_bearing_difference, BB_Parameters.ignoreEdgesInHoughTransform, originalRegionOfInterestClone, BB_Parameters.houghAngleRangeNeighborhoodSize);
+                else if(BB_Parameters.houghMethodNumber == 2)
+                    Hough_Lines.houghTransformVerticalLinesEliminateThetaWithColorChecking(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow+ BB_Parameters.lineSelectionAngleRangeLow + BB_Parameters.lineSelectionAngleRangeLow + desired_measured_bearing_difference, BB_Parameters.lineSelectionAngleRangeHigh + desired_measured_bearing_difference, BB_Parameters.ignoreEdgesInHoughTransform, originalRegionOfInterestClone, BB_Parameters.houghAngleRangeNeighborhoodSize);
+                else if(BB_Parameters.houghMethodNumber == 3)
+                    Hough_Lines.houghTransformVerticalLinesMagnifyThetaWithBinaryRoadImage(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow+ BB_Parameters.lineSelectionAngleRangeLow + BB_Parameters.lineSelectionAngleRangeLow + desired_measured_bearing_difference, BB_Parameters.lineSelectionAngleRangeHigh + desired_measured_bearing_difference, BB_Parameters.ignoreEdgesInHoughTransform, this.roadBinaryImage, BB_Parameters.houghAngleRangeNeighborhoodSize);
+                else if(BB_Parameters.houghMethodNumber == 4)
+                    Hough_Lines.houghTransformVerticalLinesEliminateThetaWithBinaryRoadImage(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow+ BB_Parameters.lineSelectionAngleRangeLow + BB_Parameters.lineSelectionAngleRangeLow + desired_measured_bearing_difference, BB_Parameters.lineSelectionAngleRangeHigh + desired_measured_bearing_difference, BB_Parameters.ignoreEdgesInHoughTransform, this.roadBinaryImage, BB_Parameters.houghAngleRangeNeighborhoodSize);
 
+                if (BB_Parameters.writeHoughToFile)
+                    outputData.toImage();
+            }
+        }
+        if(BB_Parameters.houghSmoothing)
+            linesData = Hough_Lines.findLinesWithSmoothing(outputData, binaryContourImage.height(), binaryContourImage.width(), BB_Parameters.houghNumTopLines, BB_Parameters.houghMinNumVotes, BB_Parameters.houghNeighborhoodSize);
+        else
+            linesData = Hough_Lines.findLines(outputData, binaryContourImage.height(), binaryContourImage.width(), BB_Parameters.houghNumTopLines, BB_Parameters.houghMinNumVotes, BB_Parameters.houghNeighborhoodSize);
 
 
         // temporary points to use in loop
@@ -397,6 +442,8 @@ public class GlobalRF {
 
         double intersection_col_at_bottom_row = regionOfInterest.width()/2; // intersection at bottom row
         double intersection_col_at_middle_row_difference = regionOfInterest.width() / 2; // intersection at bottom row
+
+        double topLineNumVotes = 0;
 
         // Calculate the parameters for the top lines and determine which is the road edge
         // Loop through all the top voted lines
@@ -410,7 +457,7 @@ public class GlobalRF {
                 Log.i("Line", "Num:" + Integer.toString(i) + " rho:" + Double.toString(rho) + " theta" + Double.toString(theta));
 
                 // calculate the start and end points of the line (convert from polar to cartesian)
-                double a = Math.cos(theta), b = Math.sin(theta);
+                double a = Math.cos((theta/180)*Math.PI), b = Math.sin((theta/180)*Math.PI); // coner
                 double x0 = a * rho, y0 = b * rho;
                 pt1.x = Math.round(x0 + 1000 * (-b)); // add by 1000 here to extend past edge of image, clip later
                 pt1.y = Math.round(y0 + 1000 * (a)); // add by 1000 here to extend past edge of image, clip later
@@ -428,11 +475,13 @@ public class GlobalRF {
                 double temp_intersection_col_at_bottom_row = pt2.x + slope_of_curr_line*(regionOfInterest.height() - pt2.y);
                 double temp_intersection_col_at_middle_row_difference = Math.abs((regionOfInterest.width()/2) - (pt2.x + slope_of_curr_line*(regionOfInterest.height()/2 - pt2.y)));
 
+
                 if (BB_Parameters.rightMostLineSelectionOption == 1) {
                     // OPTION 1 - average of endpoints furthest right
                     if(this.topLinePt1 == null && slope_of_curr_line > 0){
                         this.topLinePt1 = pt1.clone();
                         this.topLinePt2 = pt2.clone();
+                        topLineNumVotes = currentLine[2];
 
                         road_edge_found = true; // signal a road edge was found
 
@@ -442,6 +491,7 @@ public class GlobalRF {
                         // if the current point is further right than the current top line then replace
                         this.topLinePt1 = pt1.clone();
                         this.topLinePt2 = pt2.clone();
+                        topLineNumVotes = currentLine[2];
                     }
                 }else if(BB_Parameters.rightMostLineSelectionOption == 2){
                     // OPTION 2 - intersect bottom row furthest right
@@ -450,6 +500,7 @@ public class GlobalRF {
                         intersection_col_at_bottom_row = temp_intersection_col_at_bottom_row;
                         this.topLinePt1 = pt1.clone();
                         this.topLinePt2 = pt2.clone();
+                        topLineNumVotes = currentLine[2];
                         road_edge_found = true;
                     }
 
@@ -460,11 +511,10 @@ public class GlobalRF {
                         intersection_col_at_middle_row_difference = temp_intersection_col_at_middle_row_difference;
                         this.topLinePt1 = pt1.clone();
                         this.topLinePt2 = pt2.clone();
+                        topLineNumVotes = currentLine[2];
                         road_edge_found = true;
                     }
                 }
-
-
 
                 // ----------------------------------------------------------
                 // --------------End Select "rightmost" line------------------
@@ -473,17 +523,28 @@ public class GlobalRF {
                 if (BB_Parameters.displayHoughLines == true) {
                     if (i == 0) {
                         Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 0, 255)); // pink
+                        Core.putText(regionOfInterest, Double.toString(currentLine[2]), new Point(20,40), Core.FONT_HERSHEY_COMPLEX, 0.4, new Scalar(255, 0, 255));
                     }
-                    else if (i == 1)
+                    else if (i == 1) {
                         Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 0, 0)); // red
-                    else if (i == 2)
+                        Core.putText(regionOfInterest, Double.toString(currentLine[2]), new Point(20,60), Core.FONT_HERSHEY_COMPLEX, 0.4, new Scalar(255, 0, 0));
+                    }
+                    else if (i == 2) {
                         Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 255, 0)); // yellow
-                    else if (i == 3)
+                        Core.putText(regionOfInterest, Double.toString(currentLine[2]), new Point(20,80), Core.FONT_HERSHEY_COMPLEX, 0.4, new Scalar(255, 255, 0));
+                    }
+                    else if (i == 3) {
                         Core.line(regionOfInterest, pt1, pt2, new Scalar(0, 255, 255)); // teal
-                    else if (i == 4)
+                        Core.putText(regionOfInterest, Double.toString(currentLine[2]), new Point(20,100), Core.FONT_HERSHEY_COMPLEX, 0.4, new Scalar(0, 255, 255));
+                    }
+                    else if (i == 4) {
                         Core.line(regionOfInterest, pt1, pt2, new Scalar(255, 100, 0)); // orange
-                    else
+                        Core.putText(regionOfInterest, Double.toString(currentLine[2]), new Point(20,120), Core.FONT_HERSHEY_COMPLEX, 0.4, new Scalar(255, 100, 0));
+                    }
+                    else {
                         Core.line(regionOfInterest, pt1, pt2, new Scalar(0, 0, 255)); // blue
+                        Core.putText(regionOfInterest, Double.toString(currentLine[2]), new Point(20,140), Core.FONT_HERSHEY_COMPLEX, 0.4, new Scalar(0, 0, 255));
+                    }
                 }
             }
             //}
@@ -492,13 +553,32 @@ public class GlobalRF {
             // Draw the road edge
             Log.v("ROAD EDGE", "R.E. FOUND!");
             Core.line(regionOfInterest, this.topLinePt1, this.topLinePt2, new Scalar(0, 255, 0)); // green
+            Core.putText(regionOfInterest, Double.toString(topLineNumVotes), new Point(20,20), Core.FONT_HERSHEY_COMPLEX, 0.4, new Scalar(0, 255, 0));
+
 
             // Decide if need to go to the left or right
-            if (this.topLinePt1.y >= this.topLinePt2.y) {
-                if (this.topLinePt1.x >= BB_Parameters.leftOfCenterThreshold) {
+            if (this.topLinePt1.y >= this.topLinePt2.y) { // Check which end point of the line is the bottom point
+                // Pt1 is the bottom point
+                // Calculate bottom row intersection point
+                int bottomRowIntersectionPoint;
+                if(this.topLinePt1.y != regionOfInterest.height() - 1) {
+                    double slope_of_curr_line = slope(this.topLinePt1, this.topLinePt2); // slope of the current line
+
+                    bottomRowIntersectionPoint = (int) (this.topLinePt2.x + slope_of_curr_line * (regionOfInterest.height() - this.topLinePt2.y));
+                }else {
+                    bottomRowIntersectionPoint = (int) this.topLinePt1.x;
+                }
+                // Calculate metersFromRoadEdge for console
+                double metersFromRoadEdge = ((BB_Parameters.runningResolution_width / 2) - bottomRowIntersectionPoint) / BB_Parameters.pixelsPerMeter;
+                if(metersFromRoadEdge < 0)
+                    Log.v("R.E. Distance", Double.toString(metersFromRoadEdge) + " meters to left of road edge");
+                else
+                    Log.v("R.E. Distance", Double.toString(metersFromRoadEdge) + " meters to right of road edge");
+                // If the line is outside of the acceptable range then provide instruction to user
+                if (bottomRowIntersectionPoint >= BB_Parameters.leftOfCenterThreshold) {
                     // we are too far left go to the right
                     return "Lane Departure Warning: Merge Right";
-                } else if (this.topLinePt1.x < BB_Parameters.rightOfCenterThreshold) {
+                } else if (bottomRowIntersectionPoint < BB_Parameters.rightOfCenterThreshold) {
                     // we are too far right go to the left
                     return "Lane Departure Warning: Merge Left";
                 } else {
@@ -506,11 +586,27 @@ public class GlobalRF {
                     return "On Course";
                 }
             } else {
-                if (this.topLinePt2.x >= BB_Parameters.leftOfCenterThreshold) {
+                // Pt2 is the bottom point
+                // Calculate bottom row intersection point
+                int bottomRowIntersectionPoint;
+                if(this.topLinePt2.y != regionOfInterest.height() - 1) {
+                    double slope_of_curr_line = slope(this.topLinePt1, this.topLinePt2); // slope of the current line
+
+                    bottomRowIntersectionPoint = (int) (this.topLinePt2.x + slope_of_curr_line * (regionOfInterest.height() - this.topLinePt2.y));
+                }else {
+                    bottomRowIntersectionPoint = (int) this.topLinePt1.x;
+                }
+                double metersFromRoadEdge = ((BB_Parameters.runningResolution_width / 2) - bottomRowIntersectionPoint) / BB_Parameters.pixelsPerMeter;
+                if(metersFromRoadEdge < 0)
+                    Log.v("R.E. Distance", Double.toString(metersFromRoadEdge) + " meters to left of road edge");
+                else
+                    Log.v("R.E. Distance", Double.toString(metersFromRoadEdge) + " meters to right of road edge");
+                // If the line is outside of the acceptable range then provide instruction to user
+                if (bottomRowIntersectionPoint >= BB_Parameters.leftOfCenterThreshold) {
                     // we are too far left go to the right
                     return "Lane Departure Warning: Merge Right";
                 } else {
-                    if (this.topLinePt2.x < BB_Parameters.rightOfCenterThreshold) {
+                    if (bottomRowIntersectionPoint < BB_Parameters.rightOfCenterThreshold) {
                         // we are too far right go to the left
                         return "Lane Departure Warning: Merge Left";
 
@@ -522,17 +618,8 @@ public class GlobalRF {
             }
 
         }else{
-            return "";
+            return "No Road Edge Found";
         }
-        /*
-        // Other Idea: Take furthest right point of blob, then take all points with column within x
-        // of the column value of that point and use to fit a line
-        Mat lineparams = null;
-        if(topContours[0] != null) {
-            lineparams = findLineFromPointsWithinRangeFromFurthestRightPoint(topContours[0], 10);
-            Core.line(imgFrame, new Point(lineparams.get(2,0)[0]-10*lineparams.get(0, 0)[0], lineparams.get(3, 0)[0]-10*lineparams.get(1, 0)[0]), new Point(lineparams.get(2, 0)[0]+10*lineparams.get(0, 0)[0], lineparams.get(3, 0)[0]+10*lineparams.get(1, 0)[0]), new Scalar(0, 0, 0));
-        }
-        */
     }
 
     /**

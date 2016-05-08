@@ -552,13 +552,30 @@ public class Filter_Utility {
         int imgWidth = classArray.length;
         int imgHeight = classArray[1].length;
 
+        double[] c = {0,255,0,255};
+
         for(int i = 0; i < imgWidth; i++){
             for(int j = 0; j < imgHeight; j++){
+                c = pseudoImage.get(i, j);
                 if(classArray[i][j] == -1){
-                    pseudoImage.put(i, j, BB_Parameters.otherClassPseudocolor);
+                    for(int k = 0; k < c.length; k++) {
+                        c[k] += BB_Parameters.otherClassPseudocolor[k];
+                        c[k] = c[k] / 2;
+                        if(c[k] > 255)
+                            c[k] = 255;
+                    }
+                    pseudoImage.put(i, j, c);
                 }
-                else
-                    pseudoImage.put(i, j, gmms.elementAt(classArray[i][j]).pseudocolor); // Note: each gmm in the gmm vector has associated with it a data class gmm.className
+                else{
+                    for(int k = 0; k < c.length; k++) {
+                        c[k] += gmms.elementAt(classArray[i][j]).pseudocolor[k];
+                        c[k] = c[k] / 2;
+                        if(c[k] > 255)
+                            c[k] = 255;
+                    }
+                    pseudoImage.put(i, j, c);
+                }
+                    //pseudoImage.put(i, j, gmms.elementAt(classArray[i][j]).pseudocolor); // Note: each gmm in the gmm vector has associated with it a data class gmm.className
             }
         }
     }
@@ -577,13 +594,31 @@ public class Filter_Utility {
         int imgWidth = classArray.length;
         int imgHeight = classArray[1].length;
 
+        double[] c = {0,255,0,255};
+
         for(int i = 0; i < imgWidth; i++){
             for(int j = 0; j < imgHeight; j++){
+                c = pseudoImage.get(i, j);
                 if(classArray[i][j] == -1){
-                    pseudoImage.put(i, j, BB_Parameters.otherClassPseudocolor);
+                    //pseudoImage.put(i, j, BB_Parameters.otherClassPseudocolor);
+                    for(int k = 0; k < c.length; k++) {
+                        c[k] += BB_Parameters.otherClassPseudocolor[k];
+                        c[k] = c[k] / 2;
+                        if(c[k] > 255)
+                            c[k] = 255;
+                    }
+                    pseudoImage.put(i, j, c);
                 }
-                else
-                    pseudoImage.put(i, j, fixedRangeModels.elementAt(classArray[i][j]).pseudocolor); // Note: each gmm in the gmm vector has associated with it a data class gmm.className
+                else{
+                    for(int k = 0; k < c.length; k++) {
+                        c[k] += fixedRangeModels.elementAt(classArray[i][j]).pseudocolor[k];
+                        c[k] = c[k] / 2;
+                        if(c[k] > 255)
+                            c[k] = 255;
+                    }
+                    pseudoImage.put(i, j, c);
+                }
+                    //pseudoImage.put(i, j, fixedRangeModels.elementAt(classArray[i][j]).pseudocolor); // Note: each gmm in the gmm vector has associated with it a data class gmm.className
             }
         }
     }

@@ -12,6 +12,9 @@ public class BB_Parameters {
     // This is the number of components of the feature vector (RGB currently)
     public final static int featureVectorDimension = 3;
 
+    // Camera downward tilt angle - how far the camera is angled downward on the handlebars
+    public final static int cameraTiltAngle = 5;
+
     // Distance in meters from shape point to consider having reached it
     public final static int SHAPE_POINT_DISTANCE_THRESHOLD = 10;
 
@@ -52,15 +55,19 @@ public class BB_Parameters {
     // CLASS MODELS IN THE DATA FILES SO IT MAPS TO INDEX OF 1 IN THE VECTOR CONTAINING ALL THE CLASS MODELS
 
 
+    // The angle difference at which the user must perform an orientation change, no point in processing frame
+    public static final double bearing_offset_orientation_change_cutoff = 65;
+
+
     // If test_mode true then we process on testImage rather than camera images
-    public static final boolean test_mode = false;
+    public static final boolean test_mode = true;
 
     // Image to use in test_mode
-    public static int testImage = R.drawable.si_4;
+    public static int testImage = R.drawable.si_7;
 
     // Parameter for Small Blob Elimination Step (Step 7.1)
     // Based on birds eye view geometry which we dont have 10 columns filling aprox 280 pixel high image would be 2800
-    // and correcting for perspective we are guessing that might be 2000
+    // and correcting for perspective we are guessing that might be 2000Math.min(this.dataArray[i] * 100,255)
     public static final int minNumberBlobPixels = 2000;
 
 
@@ -102,43 +109,66 @@ public class BB_Parameters {
 
     public static final boolean displayBinaryContourImage = false;
 
+    public static final boolean writeHoughToFile = false;
+
     // Parameter for erosion/dilation value of roadBinaryImage
     public static final boolean perform_Erosion_Dilation = false;
     public static final int erosion_Value = 1; // 5x5 window
     public static final int dilation_value = 1; // 5x5 window
 
     // Parameter for Hough Lines Detection in GlobalRF
-    public static final double houghRhoResolution_PercentRunningResolution_AccumulatorSpace = 5.0;
+    public static final double houghRhoResolution_PercentRunningResolution_AccumulatorSpace = 5.0; // parameter when using openCV's hough transform call
     public static double houghRhoResolution_RunningResolution_AccumulatorSpace;
     //public static final double houghThetaResolution_AccumulatorSpace = Math.PI / 180;
-    public static final int houghThetaResolution = 180;
-    public static final int houghRhoResolution = 320;
+    public static final int houghThetaResolution = 180; // 180
+    public static final int houghRhoResolution = 320; // 320
     // Minimum Number of votes to consider line
     public static final int houghMinNumVotes = 20;
     public static final int houghMaxLineGap = 1;
-    public static final int houghNumTopLines = 10; // This is for display to see the top x lines
+    public static final int houghNumTopLines = 5; // This is for display to see the top x lines
     public static final int houghSelectTopLines = 4; // This is for selecting the right most of the top lines
     public static final int houghNeighborhoodSize = 4;
-
+    public static final boolean houghSmoothing = false;
+    public static final int magnificationFactorIfGradientInAngleRange = 10;
+    public static final int magnificationFactorIfGradientNotInAngleRange = 1;
+    public static final int magnificationFactorIfGradientMagnitudeWeak = 3;
+    public static final int colorGradientMagnitudeThreshold = 5;
+    public static final int binaryGradientMagnitudeThreshold = 5;
     public static final boolean ignoreEdgesInHoughTransform = true;
+    public static final int houghAngleRangeNeighborhoodSize = 3;
+
+    // Selection For Hough Space Calculation Method
+    // 0 = Original method with no theta or magnitude weighting
+    // 1 = COLOR magnification by theta with minimum magnitude
+    // 2 = COLOR elimination by theta with minimum magnitude
+    // 3 = BINARY magnification by theta with minimum magnitude
+    // 4 = BINARY elimination by theta with minimum magnitude
+    public static final int houghMethodNumber = 2;
 
     // Line Selection Algorithm Parameters
     // Angle Range
     // Angle of 0 or 180 is vertical line
-    public static final int lineSelectionAngleRangeLow = 45; // decrease this to narrow range (min 1)
-    public static final int lineSelectionAngleRangeHigh = 135; // increase this to narrow range (max 179)
+    public static final int lineSelectionAngleRangeLow = 50; // decrease this to narrow range (min 1)
+    public static final int lineSelectionAngleRangeHigh = 130; // increase this to narrow range (max 179)
 
     // Algorithm selection for rightmost line selection
     // 1 - pick line with positive slope(pointing to top left) that has endpoints on avg furthest right
     // 2 - pick line that intersects the bottom row of the image furthest to the right
     // 3 - pick line that intersects the middle row of the image closest to the center of the image
-    public static final int rightMostLineSelectionOption = 1;
+    public static final int rightMostLineSelectionOption = 2;
+
+    // Pixels to Meters Measurements
+    public static double pixelsPerMeter;
+    // Bottom row corresponds to following number of meters at different camera tilt angles
+    public static final double metersOfBottomRow5DegreeTilt = 3.48;
+    public static final double metersOfBottomRow10DegreeTilt = 2.72;
+    public static final double metersOfBottomRow20DegreeTilt = 2.13;
 
     // Merge direction thresholds
-    public static int leftOfCenterThreshold;
-    public static final int leftOfCenterOffsetValue = 70;
-    public static int rightOfCenterThreshold;
-    public static final int rightOfCenterOffsetValue = -70;
+    public static int leftOfCenterThreshold; // Set in CustomizeView.java because of different resolutions
+    public static final double leftOfCenterOffsetMeters = 1.52; // How many meters off the user can be on the left
+    public static int rightOfCenterThreshold; // Set in CustomizeView.java because of different resolutions
+    public static final double rightOfCenterOffsetMeters = 1.52; // How many meters off the user can be on the right
 
 
     // Parameter for blob search area

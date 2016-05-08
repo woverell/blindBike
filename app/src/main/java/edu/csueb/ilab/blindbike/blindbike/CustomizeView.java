@@ -92,8 +92,19 @@ public class CustomizeView extends JavaCameraView{
         }
         BB_Parameters.startingColumn  = BB_Parameters.runningResolution_width / 2;
 
-        BB_Parameters.leftOfCenterThreshold = BB_Parameters.runningResolution_width / 2 + BB_Parameters.leftOfCenterOffsetValue;
-        BB_Parameters.rightOfCenterThreshold = BB_Parameters.runningResolution_width / 2 + BB_Parameters.rightOfCenterOffsetValue;
+        // Set the off road edge thresholds
+        // Use camera tilt angle to use proper bottom row meters parameter to determine how many meters correspond to each pixel
+        BB_Parameters.pixelsPerMeter = 0;
+        if(BB_Parameters.cameraTiltAngle == 5)
+            BB_Parameters.pixelsPerMeter = BB_Parameters.runningResolution_width / BB_Parameters.metersOfBottomRow5DegreeTilt;
+        else if(BB_Parameters.cameraTiltAngle == 10)
+            BB_Parameters.pixelsPerMeter = BB_Parameters.runningResolution_width / BB_Parameters.metersOfBottomRow10DegreeTilt;
+        else if(BB_Parameters.cameraTiltAngle == 20)
+            BB_Parameters.pixelsPerMeter = BB_Parameters.runningResolution_width / BB_Parameters.metersOfBottomRow20DegreeTilt;
+
+        // calculate how many pixels off the center the line can be
+        BB_Parameters.leftOfCenterThreshold = BB_Parameters.runningResolution_width / 2 - Math.round(Math.round(BB_Parameters.leftOfCenterOffsetMeters * BB_Parameters.pixelsPerMeter));
+        BB_Parameters.rightOfCenterThreshold = BB_Parameters.runningResolution_width / 2 + Math.round(Math.round(BB_Parameters.rightOfCenterOffsetMeters * BB_Parameters.pixelsPerMeter));
 
         if(BB_Parameters.scaleFactor_height > 1.0 || BB_Parameters.scaleFactor_width > 1.0){
             Log.i("PARAMETERS", "Parameter scale factor greater than 1.0, meaning we are trying to increase resolution rather than decrease");
