@@ -135,6 +135,18 @@ public class Hough_Lines {
         else
             return false;
     }
+    
+    
+    private static int convertGradiantToHoughAngle(double angleToConvert){
+        angleToConvert = Math.toDegrees(angleToConvert); // convert radian angle to degrees
+        if(angleToConvert > 0){ // if the angleToConvert is between 0 and pi/2 (90) then it will be in our quadrant II
+            angleToConvert = 180 - angleToConvert;
+        }else{ // if the angleToConvert is between 0 and -pi/2 (-90) it will be in our quadrant III
+            angleToConvert = Math.abs(angleToConvert);
+        }
+
+        return (int)angleToConvert;
+    }
 
     /**
      * computes HoughTransform where the polar space is partintioned for r into rAxisSize bins and for theta into thetaAxisSize bins
@@ -468,6 +480,141 @@ public class Hough_Lines {
      *                NOTE: to do +/- from vertical lines theta1 =45 and theta2 = 135
      *
      *  @param ignoreEdges - set to true to not process the boundary pixels in the image
+     *  @param roadLabelImage - road labeled image
+     *  @param localGradientNeighborhoodSize - size of neighborhood nxn to use for gradient kernel
+     *
+     */
+    public static void houghTransformVerticalLinesReduceThetaWithBinaryRoadImage(Mat inputData, ArrayData outputData, int thetaAxisSize, int rAxisSize, float theta1, float theta2, boolean ignoreEdges, Mat roadLabelImage, int localGradientNeighborhoodSize)
+    {
+        int width = inputData.width();
+        int height = inputData.height();
+        int maxRadius = (int)Math.ceil(Math.hypot(width, height));
+        int halfRAxisSize = rAxisSize >>> 1;
+        // x output ranges from 0 to pi
+        // y output ranges from -maxRadius to maxRadius
+        double[] sinTable = new double[thetaAxisSize];
+        double[] cosTable = new double[thetaAxisSize];
+
+        // populate the sin and cosine tables for faster lookup
+        for (int theta = thetaAxisSize - 1; theta >= 0; theta--)
+        {
+            double thetaRadians = theta * Math.PI / thetaAxisSize;
+            sinTable[theta] = Math.sin(thetaRadians);
+            cosTable[theta] = Math.cos(thetaRadians);
+        }
+
+        if(theta1 >= 90.0 || theta1 < 0  || theta2<90 || theta2>180 || theta2<theta1)
+        {theta1 = 90;  theta2 = 90; } //saftey check for bad parameter specification
+
+        int theta1Bin = Math.round((float)((theta1 / 180) * (thetaAxisSize))); // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+        int theta2Bin = Math.round((float)((theta2 / 180) * (thetaAxisSize)));  // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+        if(theta1Bin == theta2Bin)
+            theta1Bin = Math.max(0, theta1Bin - 1); // reduce theta1 by one or set to 0
+        if(theta1Bin ==0 && theta2Bin==0) // if both are 0 then ...//this makes no sense
+            theta2Bin = thetaAxisSize / 2; // WILL: set theta2 bin to half??
+
+        Log.v("Theta Bin Size","theta1Bin: " + theta1Bin + " theta2Bin: " +theta2Bin);
+
+        // not processing the boundary of the image
+        int rows, cols;
+        if(ignoreEdges){
+            rows = height - 5;
+            cols = width - 5;
+        }else{
+            rows = height - 1;
+            cols = width - 1;
+        }
+
+        double[] gradient_orientationAndMagnitude;
+        // visit every pixel in the contour image
+        for (int y = rows; y >= 0; y--)
+        {
+            for (int x = cols; x >= 0; x--)
+            {
+                if (inputData.get(y,x)[0] > 0) //point want to analyize OLD CODE: if (inputData.contrast(x, y, minContrast))
+                {
+                    int houghAngle, upperBoundQ3 = 180, lowerBoundQ3 = 180, upperBoundQ2 = 0, lowerBoundQ2 = 0;
+                    gradient_orientationAndMagnitude = Utils.calculateGradientOrientationAndMagnitude(roadLabelImage, x, y, localGradientNeighborhoodSize);
+                    // If the gradient for this pixel is within the accepted range then set appropriate weight
+                    houghAngle = convertGradiantToHoughAngle(gradient_orientationAndMagnitude[0]); // Convert the -pi/2 to pi/2 to our 0-180 angle range
+                    if (gradient_orientationAndMagnitude[1] > BB_Parameters.binaryGradientMagnitudeThreshold) {
+                        // Set the lower and upper bounds
+                        if(houghAngle > 90) {
+                            upperBoundQ3 = houghAngle + BB_Parameters.houghReduceDegreeRange;
+                            lowerBoundQ3 = houghAngle - BB_Parameters.houghReduceDegreeRange;
+                        }else{
+                            upperBoundQ2 = houghAngle + BB_Parameters.houghReduceDegreeRange;
+                            lowerBoundQ2 = houghAngle - BB_Parameters.houghReduceDegreeRange;
+                        }
+
+                        // Check ranges are in bounds, fix if necessary
+                        if(upperBoundQ3 > 180){
+                            upperBoundQ2 = upperBoundQ3 - 180;
+                            lowerBoundQ2 = 0;
+                            upperBoundQ3 = 180;
+                        }else if(lowerBoundQ3 < 90){
+                            upperBoundQ2 = 90;
+                            lowerBoundQ2 = lowerBoundQ3;
+                            lowerBoundQ3 = 90;
+                        }else if(upperBoundQ2 > 90){
+                            lowerBoundQ3 = 90;
+                            upperBoundQ3 = upperBoundQ2;
+                            upperBoundQ2 = 90;
+                        }else if(lowerBoundQ2 < 0){
+                            upperBoundQ3 = 180;
+                            lowerBoundQ3 = 180 + lowerBoundQ2;
+                            lowerBoundQ2 = 0;
+                        }
+
+                        if(upperBoundQ2 > theta1)
+                            upperBoundQ2 = (int)theta1;
+
+                        if(lowerBoundQ3 < theta2)
+                            lowerBoundQ3 = (int)theta2;
+
+                        // convert to bins
+                        upperBoundQ2 = Math.round(((upperBoundQ2 * 180) / (thetaAxisSize))); // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+                        lowerBoundQ2 = Math.round(((lowerBoundQ2 * 180) / (thetaAxisSize)));  // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+                        upperBoundQ3 = Math.round(((upperBoundQ3 * 180) / (thetaAxisSize))); // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+                        lowerBoundQ3 = Math.round(((lowerBoundQ3 * 180) / (thetaAxisSize)));  // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+
+
+                        for (int theta = lowerBoundQ2; theta <= upperBoundQ2 - 1; theta++) {
+                            double r = cosTable[theta] * x + sinTable[theta] * y;
+                            int rScaled = (int) Math.round(r * halfRAxisSize / maxRadius) + halfRAxisSize;
+                            outputData.accumulate(theta, rScaled, 1);  // accumulated by weight
+                        }
+                        for (int theta = lowerBoundQ3; theta <= upperBoundQ3 - 1; theta++) {
+                            double r = cosTable[theta] * x + sinTable[theta] * y;
+                            int rScaled = (int) Math.round(r * halfRAxisSize / maxRadius) + halfRAxisSize;
+                            outputData.accumulate(theta, rScaled, 1); //acummulate by weight
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * computes HoughTransform where the polar space is partintioned for r into rAxisSize bins and for theta into thetaAxisSize bins
+     *   for the binary inputData where 255 are the pixels of interest.  Note, does this in limited theta ranges to in essence find only
+     *    "close" to vertical ranges of the Hough Space --- this in particular will calculate for the 0 to theta1 (which translates from Vertical to theta1
+     *      angled lines in cartesian coordinates)  and AGAIN for the range of theta2 to 180degrees (which translates from -theta1 angled lines to Vertical in
+     *      cartesian coordinates)
+     *      IF a local point (contour) dow NOT have a local gradient mesasurement (nxn area) in our desired range  we will have a low vote contribution
+     *      BUT if local gradientIS IN our desired angle range it has a HIGH weighting vote in hough space
+     *      what we are saying in essesence is that the local gradient is an "INDICATION" that the line going through
+     *      that point is oriented by its gradient value.
+     *  @param inputData - The contour edge input image
+     *  @param outputData - The grid in rho, theta space representing the hough space as a 1d array
+     *  @param thetaAxisSize - number of theta buckets
+     *  @param rAxisSize - number of rho buckets
+     *  @param theta1 - will search from 0 degrees up to theta1 (max range 0 to 90)- Quadrant 2 (SE) NOTE: theta1 = 0   is vertical line and 90 is horizontal line
+     *  @param theta2 - ALSO will search from theta2 to 180 (max range 90 to 180)- Quadrant 3 NOTE:  theta2=90 degrees is horizontal line and 180 is vertical line
+     *                NOTE: to cut OUT horizontal lines (+/-10 degrees from horizontal) specify theta1 = 80  and theta2 = 110
+     *                NOTE: to do +/- from vertical lines theta1 =45 and theta2 = 135
+     *
+     *  @param ignoreEdges - set to true to not process the boundary pixels in the image
      *  @param localGradientNeighborhoodSize
      *
      */
@@ -533,6 +680,140 @@ public class Hough_Lines {
                                 int rScaled = (int) Math.round(r * halfRAxisSize / maxRadius) + halfRAxisSize;
                                 outputData.accumulate(theta, rScaled, 1); //acummulate by weight
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * computes HoughTransform where the polar space is partintioned for r into rAxisSize bins and for theta into thetaAxisSize bins
+     *   for the binary inputData where 255 are the pixels of interest.  Note, does this in limited theta ranges to in essence find only
+     *    "close" to vertical ranges of the Hough Space --- this in particular will calculate for the 0 to theta1 (which translates from Vertical to theta1
+     *      angled lines in cartesian coordinates)  and AGAIN for the range of theta2 to 180degrees (which translates from -theta1 angled lines to Vertical in
+     *      cartesian coordinates)
+     *      IF a local point (contour) dow NOT have a local gradient mesasurement (nxn area) in our desired range  we will have a low vote contribution
+     *      BUT if local gradientIS IN our desired angle range it has a HIGH weighting vote in hough space
+     *      what we are saying in essesence is that the local gradient is an "INDICATION" that the line going through
+     *      that point is oriented by its gradient value.
+     *  @param inputData - The contour edge input image
+     *  @param outputData - The grid in rho, theta space representing the hough space as a 1d array
+     *  @param thetaAxisSize - number of theta buckets
+     *  @param rAxisSize - number of rho buckets
+     *  @param theta1 - will search from 0 degrees up to theta1 (max range 0 to 90)- Quadrant 2 (SE) NOTE: theta1 = 0   is vertical line and 90 is horizontal line
+     *  @param theta2 - ALSO will search from theta2 to 180 (max range 90 to 180)- Quadrant 3 NOTE:  theta2=90 degrees is horizontal line and 180 is vertical line
+     *                NOTE: to cut OUT horizontal lines (+/-10 degrees from horizontal) specify theta1 = 80  and theta2 = 110
+     *                NOTE: to do +/- from vertical lines theta1 =45 and theta2 = 135
+     *
+     *  @param ignoreEdges - set to true to not process the boundary pixels in the image
+     *  @param localGradientNeighborhoodSize
+     *
+     */
+    public static void houghTransformVerticalLinesReduceThetaWithColorChecking(Mat inputData, ArrayData outputData, int thetaAxisSize, int rAxisSize, float theta1, float theta2, boolean ignoreEdges, Mat origImage, int localGradientNeighborhoodSize) {
+        int width = inputData.width();
+        int height = inputData.height();
+        int maxRadius = (int) Math.ceil(Math.hypot(width, height));
+        int halfRAxisSize = rAxisSize >>> 1;
+        // x output ranges from 0 to pi
+        // y output ranges from -maxRadius to maxRadius
+        double[] sinTable = new double[thetaAxisSize];
+        double[] cosTable = new double[thetaAxisSize];
+
+        // populate the sin and cosine tables for faster lookup
+        for (int theta = thetaAxisSize - 1; theta >= 0; theta--) {
+            double thetaRadians = theta * Math.PI / thetaAxisSize;
+            sinTable[theta] = Math.sin(thetaRadians);
+            cosTable[theta] = Math.cos(thetaRadians);
+        }
+
+        if (theta1 >= 90.0 || theta1 < 0 || theta2 < 90 || theta2 > 180 || theta2 < theta1) {
+            theta1 = 90;
+            theta2 = 90;
+        } //safety check for bad parameter specification
+
+        int theta1Bin = Math.round(((theta1 / 180) * (thetaAxisSize))); // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+        int theta2Bin = Math.round(((theta2 / 180) * (thetaAxisSize)));  // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+        if (theta1Bin == theta2Bin)
+            theta1Bin = Math.max(0, theta1Bin - 1); // reduce theta1 by one or set to 0
+        if (theta1Bin == 0 && theta2Bin == 0) // if both are 0 then ...//this makes no sense
+            theta2Bin = thetaAxisSize / 2; // WILL: set theta2 bin to half??
+
+        Log.v("Theta Bin Size", "theta1Bin: " + theta1Bin + " theta2Bin: " + theta2Bin);
+
+        // not processing the boundary of the image
+        int rows, cols;
+        if (ignoreEdges) {
+            rows = height - 5;
+            cols = width - 5;
+        } else {
+            rows = height - 1;
+            cols = width - 1;
+        }
+
+        double[] color_gradient_magnitude;
+
+        // visit every pixel in the contour image
+        for (int y = rows; y >= 0; y--) {
+            for (int x = cols; x >= 0; x--) {
+                // If this is a contour pixel
+                if (inputData.get(y, x)[0] > 0) //point want to analyize OLD CODE: if (inputData.contrast(x, y, minContrast))
+                {
+                    int houghAngle, upperBoundQ3 = 180, lowerBoundQ3 = 180, upperBoundQ2 = 0, lowerBoundQ2 = 0;
+                    // If the gradient for this pixel is within the accepted range then set appropriate weight
+                    color_gradient_magnitude = Utils.calculateColorGradientOrientationAndMagnitude(origImage, x, y, localGradientNeighborhoodSize);
+                    houghAngle = convertGradiantToHoughAngle(color_gradient_magnitude[0]); // Convert the -pi/2 to pi/2 to our 0-180 angle range
+                    if (color_gradient_magnitude[1] > BB_Parameters.colorGradientMagnitudeThreshold) {
+                        // Set the lower and upper bounds
+                       if(houghAngle > 90) {
+                           upperBoundQ3 = houghAngle + BB_Parameters.houghReduceDegreeRange;
+                           lowerBoundQ3 = houghAngle - BB_Parameters.houghReduceDegreeRange;
+                       }else{
+                           upperBoundQ2 = houghAngle + BB_Parameters.houghReduceDegreeRange;
+                           lowerBoundQ2 = houghAngle - BB_Parameters.houghReduceDegreeRange;
+                       }
+
+                        // Check ranges are in bounds, fix if necessary
+                        if(upperBoundQ3 > 180){
+                            upperBoundQ2 = upperBoundQ3 - 180;
+                            lowerBoundQ2 = 0;
+                            upperBoundQ3 = 180;
+                        }else if(lowerBoundQ3 < 90){
+                            upperBoundQ2 = 90;
+                            lowerBoundQ2 = lowerBoundQ3;
+                            lowerBoundQ3 = 90;
+                        }else if(upperBoundQ2 > 90){
+                            lowerBoundQ3 = 90;
+                            upperBoundQ3 = upperBoundQ2;
+                            upperBoundQ2 = 90;
+                        }else if(lowerBoundQ2 < 0){
+                            upperBoundQ3 = 180;
+                            lowerBoundQ3 = 180 + lowerBoundQ2;
+                            lowerBoundQ2 = 0;
+                        }
+
+                        if(upperBoundQ2 > theta1)
+                            upperBoundQ2 = (int)theta1;
+
+                        if(lowerBoundQ3 < theta2)
+                            lowerBoundQ3 = (int)theta2;
+
+                        // convert to bins
+                        upperBoundQ2 = Math.round(((upperBoundQ2 * 180) / (thetaAxisSize))); // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+                        lowerBoundQ2 = Math.round(((lowerBoundQ2 * 180) / (thetaAxisSize)));  // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+                        upperBoundQ3 = Math.round(((upperBoundQ3 * 180) / (thetaAxisSize))); // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+                        lowerBoundQ3 = Math.round(((lowerBoundQ3 * 180) / (thetaAxisSize)));  // round to nearest value of thetaAxisSize divisible by 180 WILL: Need to match a resolution still
+
+
+                        for (int theta = lowerBoundQ2; theta <= upperBoundQ2 - 1; theta++) {
+                            double r = cosTable[theta] * x + sinTable[theta] * y;
+                            int rScaled = (int) Math.round(r * halfRAxisSize / maxRadius) + halfRAxisSize;
+                            outputData.accumulate(theta, rScaled, 1);  // accumulated by weight
+                        }
+                        for (int theta = lowerBoundQ3; theta <= upperBoundQ3 - 1; theta++) {
+                            double r = cosTable[theta] * x + sinTable[theta] * y;
+                            int rScaled = (int) Math.round(r * halfRAxisSize / maxRadius) + halfRAxisSize;
+                            outputData.accumulate(theta, rScaled, 1); //acummulate by weight
                         }
                     }
                 }

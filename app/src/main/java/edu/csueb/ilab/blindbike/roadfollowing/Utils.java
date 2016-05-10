@@ -25,7 +25,7 @@ public class Utils {
         double[] orientationAndMagnitude = new double[2];
 
         // Check if pixel is an edge pixel
-        if(x - halfNeighborhood <= 0 || x + halfNeighborhood >= binary_image.width() || y - halfNeighborhood <= 0 || y + halfNeighborhood >= binary_image.height()){
+        if(x - halfNeighborhood <= 0 || x + halfNeighborhood >= binary_image.cols() || y - halfNeighborhood <= 0 || y + halfNeighborhood >= binary_image.rows()){
             // Return 0 magnitude and out of bounds angle
             orientationAndMagnitude[0] = 200;
             orientationAndMagnitude[1] = 0;
@@ -36,21 +36,21 @@ public class Utils {
             for (int row = y - halfNeighborhood; row <= y + halfNeighborhood; row++) {
                 for (int col = x - halfNeighborhood; col <= x + halfNeighborhood; col++) {
                     // Calculate DX
-                    if (row > y) { // if in the top half rows of the neighborhood
+                    if (col > x) { // if in the top half rows of the neighborhood
                         tempPixelValue = binary_image.get(row, col);
                         dx += tempPixelValue[0]; // add the pixel value
                     }
-                    else if (row < y) { // if in the bottom half rows of the neighborhood
+                    else if (col < x) { // if in the bottom half rows of the neighborhood
                         tempPixelValue = binary_image.get(row, col);
                         dx -= tempPixelValue[0]; // subtract the pixel value
                     }
 
                     // Calculate DY
-                    if (col > x) { // if in the top half rows of the neighborhood
+                    if (row > y) { // if in the top half rows of the neighborhood
                         tempPixelValue = binary_image.get(row, col);
                         dy += tempPixelValue[0]; // add the pixel value
                     }
-                    else if (col < x) { // if in the bottom half rows of the neighborhood
+                    else if (row < y) { // if in the bottom half rows of the neighborhood
                         tempPixelValue = binary_image.get(row, col);
                         dy -= tempPixelValue[0]; // subtract the pixel value
                     }
@@ -65,10 +65,12 @@ public class Utils {
 
         // Check if dx or dy is too small to be an edge, if so return an out of bounds value
         // If dx is 0 then it is a vertical line return 0, remember polar so a 0 degree theta is a vertical line
-        if(Math.abs(dx) <= 5 && Math.abs(dy) <= 5) // WILL: what value to use??
+        if(Math.abs(dx) < 1 && Math.abs(dy) < 1) { // WILL: what value to use??
             orientationAndMagnitude[0] = 200; // out of bounds value
+            orientationAndMagnitude[1] = 0;
+        }
         else if(dx == 0)
-            orientationAndMagnitude[0] = 0;
+            orientationAndMagnitude[0] = Math.PI / 2;
         else
             orientationAndMagnitude[0] = Math.atan(-dy/dx); // otherwise calculate the angle
 
@@ -108,12 +110,12 @@ public class Utils {
             for (int row = y - halfNeighborhood; row <= y + halfNeighborhood; row++) {
                 for (int col = x - halfNeighborhood; col <= x + halfNeighborhood; col++) {
                     // Calculate DX
-                    if (row > y) { // if in the top half rows of the neighborhood
+                    if (col > x) { // if in the top half rows of the neighborhood
                         tempPixelValue = rgba_image.get(row, col);
                         dx_red += tempPixelValue[0]; // add the pixel value for red
                         dx_green += tempPixelValue[1]; // add the pixel value for green
                         dx_blue += tempPixelValue[2]; // add the pixel value for blue
-                    } else if (row < y) { // if in the bottom half rows of the neighborhood
+                    } else if (col < x) { // if in the bottom half rows of the neighborhood
                         tempPixelValue = rgba_image.get(row, col);
                         dx_red -= tempPixelValue[0]; // subtract the pixel value for red
                         dx_green -= tempPixelValue[1]; // subtract the pixel value for green
@@ -121,12 +123,12 @@ public class Utils {
                     }
 
                     // Calculate DY
-                    if (col > x) { // if in the top half rows of the neighborhood
+                    if (row > y) { // if in the top half row of the neighborhood
                         tempPixelValue = rgba_image.get(row, col);
                         dy_red += tempPixelValue[0]; // add the pixel value for red
                         dy_green += tempPixelValue[1]; // add the pixel value for green
                         dy_blue += tempPixelValue[2]; // add the pixel value for blue
-                    } else if (col < x) { // if in the bottom half rows of the neighborhood
+                    } else if (row < y) { // if in the bottom half row of the neighborhood
                         tempPixelValue = rgba_image.get(row, col);
                         dy_red -= tempPixelValue[0]; // subtract the pixel value for red
                         dy_green -= tempPixelValue[1]; // subtract the pixel value for green
@@ -144,9 +146,20 @@ public class Utils {
             orientationAndMagnitude[1] = (mag_red + mag_green + mag_blue); // Sum magnitudes for whole magnitude
 
             // Calculate gradients
-            grad_red = Math.atan(-dy_red / dx_red);
-            grad_green = Math.atan(-dy_green / dx_green);
-            grad_blue = Math.atan(-dy_blue / dx_blue);
+            if(dx_red == 0)
+                grad_red = Math.PI / 2;
+            else
+                grad_red = Math.atan(-dy_red / dx_red);
+
+            if(dx_green == 0)
+                grad_green = Math.PI / 2;
+            else
+                grad_green = Math.atan(-dy_green / dx_green);
+
+            if(dx_blue == 0)
+                grad_blue = Math.PI / 2;
+            else
+                grad_blue = Math.atan(-dy_blue / dx_blue);
 
             orientationAndMagnitude[0] = (mag_red * grad_red + mag_green * grad_green + mag_blue * grad_blue)/(mag_red+mag_green+mag_blue);
 

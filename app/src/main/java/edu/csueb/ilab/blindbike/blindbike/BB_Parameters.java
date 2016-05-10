@@ -60,10 +60,10 @@ public class BB_Parameters {
 
 
     // If test_mode true then we process on testImage rather than camera images
-    public static final boolean test_mode = true;
+    public static final boolean test_mode = false;
 
     // Image to use in test_mode
-    public static int testImage = R.drawable.si_7;
+    public static int testImage = R.drawable.si_4;
 
     // Parameter for Small Blob Elimination Step (Step 7.1)
     // Based on birds eye view geometry which we dont have 10 columns filling aprox 280 pixel high image would be 2800
@@ -103,7 +103,7 @@ public class BB_Parameters {
 
     public static final boolean displayAllContours = false;
 
-    public static final boolean displayTopTwoContours = false;
+    public static final boolean displayTopTwoContours = true;
 
     public static final boolean displayHoughLines = true;
 
@@ -123,9 +123,9 @@ public class BB_Parameters {
     public static final int houghThetaResolution = 180; // 180
     public static final int houghRhoResolution = 320; // 320
     // Minimum Number of votes to consider line
-    public static final int houghMinNumVotes = 20;
+    public static final int houghMinNumVotes = 10;
     public static final int houghMaxLineGap = 1;
-    public static final int houghNumTopLines = 5; // This is for display to see the top x lines
+    public static final int houghNumTopLines = 10; // This is for display to see the top x lines
     public static final int houghSelectTopLines = 4; // This is for selecting the right most of the top lines
     public static final int houghNeighborhoodSize = 4;
     public static final boolean houghSmoothing = false;
@@ -133,9 +133,11 @@ public class BB_Parameters {
     public static final int magnificationFactorIfGradientNotInAngleRange = 1;
     public static final int magnificationFactorIfGradientMagnitudeWeak = 3;
     public static final int colorGradientMagnitudeThreshold = 5;
-    public static final int binaryGradientMagnitudeThreshold = 5;
+    public static final int binaryGradientMagnitudeThreshold = 1;
     public static final boolean ignoreEdgesInHoughTransform = true;
     public static final int houghAngleRangeNeighborhoodSize = 3;
+    public static final boolean houghAdjustAnglesBasedOnBearing = false;
+    public static final int houghReduceDegreeRange = 7;
 
     // Selection For Hough Space Calculation Method
     // 0 = Original method with no theta or magnitude weighting
@@ -143,7 +145,9 @@ public class BB_Parameters {
     // 2 = COLOR elimination by theta with minimum magnitude
     // 3 = BINARY magnification by theta with minimum magnitude
     // 4 = BINARY elimination by theta with minimum magnitude
-    public static final int houghMethodNumber = 2;
+    // 5 = COLOR reduction by theta with minimum magnitude
+    // 6 = BINARY reduction by theta with minimum magnitude
+    public static final int houghMethodNumber = 5;
 
     // Line Selection Algorithm Parameters
     // Angle Range

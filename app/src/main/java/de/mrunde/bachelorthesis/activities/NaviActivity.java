@@ -970,7 +970,12 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// CALL ROAD FOLLOWING(William)
 		// and update the directions to be given to the user
 		this.directionsText = globalRF.processFrame(mRgba, this.desiredBearing, this.currentBearing);
-		/*Mat src_mat=new Mat(4,1,CvType.CV_32FC2);
+		// If there is something to speak then speak it
+		if(this.directionsText.length()>1)
+			tts.speak(this.directionsText, TextToSpeech.QUEUE_FLUSH, null);
+		/*
+		PERSPECTIVE WARP TESTING
+		Mat src_mat=new Mat(4,1,CvType.CV_32FC2);
 		Mat dst_mat=new Mat(4,1, CvType.CV_32FC2);
 
 		// Source points

@@ -211,9 +211,12 @@ public class GlobalRF {
 
             // If the bearing difference is above the threshold then tell user to perform orientation change
             // Do not process frame
-            /*if(Math.abs(desired_measured_bearing_difference) >= BB_Parameters.bearing_offset_orientation_change_cutoff){
-                return "ORIENTATION CHANGE";
-            }*/
+            if(Math.abs(desired_measured_bearing_difference) >= BB_Parameters.bearing_offset_orientation_change_cutoff) {
+                if(desired_measured_bearing_difference < 0)
+                    return "ORIENTATION OFF, STOP AND MOVE HANDLEBARS SLOWLY TO RIGHT";
+                else
+                    return "ORIENTATION OFF, STOP AND MOVE HANDLEBARS SLOWLY TO LEFT";
+            }
         }
         // if the image is empty then don't process anything or if stage to display is original image
         if(imgFrame.empty())
@@ -391,7 +394,7 @@ public class GlobalRF {
         //Imgproc.HoughLinesP(binaryContourImage, lines, BB_Parameters.houghRhoResolution_PercentRunningResolution_AccumulatorSpace, BB_Parameters.houghThetaResolution_AccumulatorSpace, BB_Parameters.houghMinNumVotes);
 
         // If a desired bearing is not set then use the default parameters for hough lines for angle selection
-        if(desiredBearing < 0) {
+        if(desiredBearing < 0 || BB_Parameters.houghAdjustAnglesBasedOnBearing == false) {
             // Choose the correct hough space calculation method
             if(BB_Parameters.houghMethodNumber == 0)
                 Hough_Lines.houghTransformVerticalLines(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform);
@@ -403,6 +406,10 @@ public class GlobalRF {
                 Hough_Lines.houghTransformVerticalLinesMagnifyThetaWithBinaryRoadImage(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform, this.roadBinaryImage, BB_Parameters.houghAngleRangeNeighborhoodSize);
             else if(BB_Parameters.houghMethodNumber == 4)
                 Hough_Lines.houghTransformVerticalLinesEliminateThetaWithBinaryRoadImage(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform, this.roadBinaryImage, BB_Parameters.houghAngleRangeNeighborhoodSize);
+            else if(BB_Parameters.houghMethodNumber == 5)
+                Hough_Lines.houghTransformVerticalLinesReduceThetaWithColorChecking(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform, originalRegionOfInterestClone, BB_Parameters.houghAngleRangeNeighborhoodSize);
+            else if(BB_Parameters.houghMethodNumber == 6)
+                Hough_Lines.houghTransformVerticalLinesReduceThetaWithBinaryRoadImage(binaryContourImage, outputData, BB_Parameters.houghThetaResolution, BB_Parameters.houghRhoResolution, BB_Parameters.lineSelectionAngleRangeLow, BB_Parameters.lineSelectionAngleRangeHigh, BB_Parameters.ignoreEdgesInHoughTransform, this.roadBinaryImage, BB_Parameters.houghAngleRangeNeighborhoodSize);
 
             if(BB_Parameters.writeHoughToFile)
                 outputData.toImage();
