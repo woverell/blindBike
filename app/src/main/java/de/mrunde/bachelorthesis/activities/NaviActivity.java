@@ -1,6 +1,8 @@
 package de.mrunde.bachelorthesis.activities;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -37,6 +39,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
 import android.content.Intent;
+import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -52,6 +55,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.TextToSpeech.OnInitListener;
@@ -924,6 +928,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			o.inScaled = false;
 			Bitmap bmp = BitmapFactory.decodeResource(getResources(), BB_Parameters.testImage, o);
 			Utils.bitmapToMat(bmp, this.dummy_Image); // URL: http://stackoverflow.com/questions/17390289/convert-bitmap-to-mat-after-capture-image-using-android-camera
+			if(BB_Parameters.batch_testing)
+				batchTestImages();
 		}
 
 
@@ -937,12 +943,78 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 	public void onCameraViewStopped() {
 	}
 
+	public static Bitmap getBitmapFromAsset(Context context, String filePath) {
+		AssetManager assetManager = context.getAssets();
+
+		InputStream istr;
+		Bitmap bitmap = null;
+		try {
+			istr = assetManager.open(filePath);
+			bitmap = BitmapFactory.decodeStream(istr);
+		} catch (IOException e) {
+			// handle exception
+		}
+
+		return bitmap;
+	}
+
+	private void batchTestImages(){
+		String[] listOfFiles = new String[10];
+		String filename;
+		int idOfImage;
+		try {
+			listOfFiles = getAssets().list("imgs_to_process");
+		}catch(IOException any) {
+			// nothing
+			listOfFiles[0] = "si_4";
+			listOfFiles[1] = "si_7";
+		}
+		// Loop Through All Images in Resources/drawable folder
+		this.dummy_Image = new Mat();
+		for(int i = 0; i < listOfFiles.length; i++) {
+			filename = listOfFiles[i];
+			Bitmap bmp = getBitmapFromAsset(getApplicationContext(), "imgs_to_process/" + filename);
+			Utils.bitmapToMat(bmp, this.dummy_Image); // URL: http://stackoverflow.com/questions/17390289/convert-bitmap-to-mat-after-capture-image-using-android-camera
+			this.dummy_Image.copyTo(mRgba);
+
+			globalRF.processFrame(mRgba,0,0); // process the frame
+
+			saveMatToFile(mRgba, filename + "_processed"); // save the image
+		}
+	}
+
+	/**
+	 * This method takes as params an image stored in a Mat object,
+	 * creates a jpeg image from the Mat and saves it in the Pictures
+	 * Gallery of the phone with the name passed in params.
+	 * @param toSave
+	 * @param filename
+	 */
+	private void saveMatToFile(Mat toSave, String filename){
+		Bitmap bitmap = Bitmap.createBitmap(toSave.cols(), toSave.rows(), Bitmap.Config.ARGB_8888);
+		org.opencv.android.Utils.matToBitmap(toSave, bitmap);
+
+		File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+		File file = new File(path, filename + ".jpeg");
+		if (file.exists ()) file.delete ();
+		try {
+			FileOutputStream out = new FileOutputStream(file);
+			bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+			out.flush();
+			out.close();
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
 	public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 		Log.i("FrameProc", "New Frame Processing");
-		mRgba = inputFrame.rgba();
 
 		if(BB_Parameters.test_mode){
 			this.dummy_Image.copyTo(mRgba);
+		}else{
+			mRgba = inputFrame.rgba();
 		}
 
 

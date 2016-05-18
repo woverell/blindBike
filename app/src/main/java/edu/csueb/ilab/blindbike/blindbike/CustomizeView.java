@@ -90,7 +90,12 @@ public class CustomizeView extends JavaCameraView{
             Log.i("ERROR", "startingRow miscalculated");
             BB_Parameters.startingRow = 0; // Not really the right thing but what can we do? because the cutoff parameter was wrong to begin with
         }
-        BB_Parameters.startingColumn  = BB_Parameters.runningResolution_width / 2;
+        BB_Parameters.startingColumn  = (int)(BB_Parameters.runningResolution_width - (BB_Parameters.runningResolution_width * BB_Parameters.widthPercentToCalculateForRoadArea / 100.0));
+        // check for validity
+        if(BB_Parameters.startingColumn > BB_Parameters.runningResolution_width)
+            BB_Parameters.startingColumn = BB_Parameters.runningResolution_width - 1;
+        else if(BB_Parameters.startingColumn < 0)
+            BB_Parameters.startingColumn = 0;
 
         // Set the off road edge thresholds
         // Use camera tilt angle to use proper bottom row meters parameter to determine how many meters correspond to each pixel

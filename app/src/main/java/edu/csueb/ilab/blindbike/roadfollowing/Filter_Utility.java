@@ -22,6 +22,15 @@ import edu.csueb.ilab.blindbike.blindbike.BB_Parameters;
  *
  */
 public class Filter_Utility {
+
+    static boolean isRoadClass(int classID){
+        for(int i = 0; i < BB_Parameters.road_classes.length; i++){
+            if(classID == BB_Parameters.road_classes[i])
+                return true;
+        }
+        return false;
+    }
+
     /**
      * Classify the pixels of the image based on their feature vectors into 0 - no class or
      * 255 - the class.  The class represented by the gmm.
@@ -147,6 +156,77 @@ public class Filter_Utility {
 
     /**
      * Classify the pixels of the image based on their feature vectors into 0 - no class or
+     * 255 - the class.  The class represented by the gmm.
+     * @param gmms
+     * @param img_HSV
+     * @param roadBinaryImage
+     * @param classArray
+     */
+    static void classifyImageIntoDataClassesHSV(Vector<GMM> gmms, Mat img_HSV, Mat roadBinaryImage, int[][] classArray){
+        byte buff1[] = new byte[(int)img_HSV.total() * img_HSV.channels()]; // to store original img
+        byte buff2[] = new byte[(int)roadBinaryImage.total() * roadBinaryImage.channels()]; // to store roadBinaryImage
+
+        // copy img_HSV into buff1
+        img_HSV.get(0,0, buff1);
+
+        //String test = img.dump();
+
+        int count_Classes[] = new int[gmms.size()];
+
+        for(int c =0; c< gmms.size(); c++)
+            count_Classes[c] = 0;
+
+        // Step 1: Cycle through every feature vector (each feature vector corresponds to a pixel)
+        // and classify it using the GMMs, one GMM per data class (one gmm for sky, one for road, ...)
+        double[] sample = new double[BB_Parameters.featureVectorDimension];
+
+        for(int i = 0; i < img_HSV.rows(); i++){
+            for(int j = 0; j < img_HSV.cols(); j++){
+                // Pull out H, S, V values
+                sample[0] = buff1[(i*img_HSV.cols()*3)+(j*3)+0] & 0xFF; // H
+                sample[1] = buff1[(i*img_HSV.cols()*3)+(j*3)+1] & 0xFF; // S
+                sample[2] = buff1[(i*img_HSV.cols()*3)+(j*3)+2] & 0xFF; // V
+
+                // Cycle through GMM list to figure out which class has the highest probability
+                double max = -10;
+                int class_index = -1;
+                double tmp;
+
+                for(int g = 0; g < gmms.size(); g++){
+                    if((tmp = gmms.elementAt(g).predict(sample)) > max && tmp >= 0.0){
+                        // This means it is class g at this point
+                        class_index = g;
+                        max = tmp;
+                    }
+                }
+
+                //Some counting AND
+                //create binary image of road/not road pixels for future processing
+                if(class_index == -1 ) {
+                    //roadBinaryImage.put(i, j, 0);
+                    buff2[i*img_HSV.cols()+j] = 0;
+                }
+                else {
+                    count_Classes[class_index] += 1;
+                    if(isRoadClass(class_index)) { //MEANS WE ALWAYS need to keep this meaning road
+                        //roadBinaryImage.put(i, j, 255);
+                        buff2[i*img_HSV.cols()+j] = -1; // this is a road pixel, -1 for byte buffer
+                    }
+                    else {
+                        //roadBinaryImage.put(i, j, 0);
+                        buff2[i*img_HSV.cols()+j] = 0;
+                    }
+                }
+                classArray[i][j] = class_index;
+            }
+        }
+
+        roadBinaryImage.put(0,0,buff2); // put the buffer in the roadBinaryImage
+        //return classArray;
+    }
+
+    /**
+     * Classify the pixels of the image based on their feature vectors into 0 - no class or
      * 255 - the class.  The class represented by the fixed range model.  NOT IMPLEMENTED
      * @param fixedRangeModel
      * @param inputImg
@@ -230,7 +310,7 @@ public class Filter_Utility {
                 }
                 else {
                     count_Classes[class_index] += 1;
-                    if (class_index == 1) //MEANS WE ALWAYS need to keep this meaning road
+                    if(isRoadClass(class_index)) //MEANS WE ALWAYS need to keep this meaning road
                         roadBinaryImage.put(i, j, 255);
                     else
                         roadBinaryImage.put(i,j,0);
@@ -254,8 +334,6 @@ public class Filter_Utility {
         return classArray;
 
     }
-
-
 
     static Vector<GMM> readParametersForMixtureOfGaussiansForAllDataClasses(String gmmsfilename, Context context, double standard_Deviation_Factor){
         Vector<GMM> gmms = new Vector();
@@ -417,11 +495,9 @@ public class Filter_Utility {
      * @param gmms
      * @param originalImg
      * @param roadBinaryImage
-     * @param detect_class_index
-     *
      * @return
      */
-    static int[][] adaptiveOutlierElimination(int detect_class_index, int[][] labeledImage, Vector<GMM> gmms, Mat originalImg, Mat roadBinaryImage){
+    static int[][] adaptiveOutlierElimination(int[][] labeledImage, Vector<GMM> gmms, Mat originalImg, Mat roadBinaryImage){
         float meanR = 0f, meanG = 0f, meanB = 0f, stdR = 0f, stdG = 0f, stdB = 0f;
         int counter = 0;
         int count_Outliers=0;
@@ -433,7 +509,7 @@ public class Filter_Utility {
         // Calculate mean
         for(int i = 0; i < labeledImage.length; i++) { // cycle through rows
             for (int j = 0; j < labeledImage[0].length; j++) { // cycle through columns
-                if(labeledImage[i][j] == detect_class_index){
+                if(isRoadClass(labeledImage[i][j])){
                     // WILLIAM: CHECK RGB CORRECT
                     meanR += originalImg.get(i, j)[0]; // R
                     meanG += originalImg.get(i, j)[1]; // G
@@ -451,7 +527,7 @@ public class Filter_Utility {
         // Calculate std
         for(int i = 0; i < labeledImage.length; i++) { // cycle through rows
             for (int j = 0; j < labeledImage[0].length; j++) { // cycle through columns
-                if(labeledImage[i][j] == detect_class_index){
+                if(isRoadClass(labeledImage[i][j])){
                     // WILLIAM: CHECK RGB CORRECT
                     x = originalImg.get(i,j)[0];
 
@@ -470,7 +546,7 @@ public class Filter_Utility {
         for(int i = 0; i < labeledImage.length; i++) { // cycle through rows
             for (int j = 0; j < labeledImage[0].length; j++) { // cycle through columns
                 newLabeledImage[i][j] = labeledImage[i][j];
-                if (labeledImage[i][j] == detect_class_index) {
+                if (isRoadClass(labeledImage[i][j])) {
                     if(  Math.abs(originalImg.get(i, j)[0] - meanR) > BB_Parameters.adaptive_std_dev_range_factor * stdR ||
                             Math.abs(originalImg.get(i, j)[1] - meanG) > BB_Parameters.adaptive_std_dev_range_factor * stdG ||
                             Math.abs(originalImg.get(i, j)[2] - meanB) > BB_Parameters.adaptive_std_dev_range_factor * stdB ){
@@ -488,7 +564,7 @@ public class Filter_Utility {
                         sample[0] = originalImg.get(i, j)[2]; // B
 
                         for(int g = 0; g < gmms.size(); g++){
-                            if(g == detect_class_index) continue;
+                            if(isRoadClass(g)) continue;
                             if((tmp = gmms.elementAt(g).predict(sample)) > max && tmp >= 0.0){
                                 // This means it is class g at this point
                                 class_index = g;
@@ -506,7 +582,7 @@ public class Filter_Utility {
                         }
                         else {
 
-                            if (class_index == 1) //MEANS WE ALWAYS need to keep this meaning road
+                            if(isRoadClass(class_index)) //MEANS WE ALWAYS need to keep this meaning road
                                 roadBinaryImage.put(i, j, 255);
                             else
                                 roadBinaryImage.put(i,j,0);
@@ -524,6 +600,118 @@ public class Filter_Utility {
         return newLabeledImage;
     }
 
+    /**
+     * Creates an adaptive model of the mean and standard deviations of the h,s,v values for the pixels in the labeled image
+     * that are labeled detect_class_index.  Using the mean and standard deviation we detect outliers as those being more than
+     * BB_Parameters.adaptive_std_dev_range_factor * std away from the mean.  For every outlier detected of the label detect_class_index
+     * we reclassify the pixel and update the returned labeled image as well as updating roadBinaryImage as appropriate.
+     * @param labeledImage
+     * @param gmms
+     * @param originalImg
+     * @param roadBinaryImage
+     * @return
+     */
+    static int[][] adaptiveOutlierEliminationHSV(int[][] labeledImage, Vector<GMM> gmms, Mat originalImg, Mat roadBinaryImage){
+        float meanH = 0f, meanS = 0f, meanV = 0f, stdH = 0f, stdS = 0f, stdV = 0f;
+        int counter = 0;
+        int count_Outliers=0;
+        double[] sample = new double[BB_Parameters.featureVectorDimension];
+        int[][] newLabeledImage;
+
+        newLabeledImage = new int[labeledImage.length][labeledImage[0].length];
+
+        // Calculate mean
+        for(int i = 0; i < labeledImage.length; i++) { // cycle through rows
+            for (int j = 0; j < labeledImage[0].length; j++) { // cycle through columns
+                if(isRoadClass(labeledImage[i][j])){
+                    meanH += originalImg.get(i, j)[0]; // H
+                    meanS += originalImg.get(i, j)[1]; // S
+                    meanV += originalImg.get(i, j)[2]; // V
+                    counter++;
+                }
+            }
+        }
+
+        meanH = ((float)meanH)/counter;
+        meanS = ((float)meanS)/counter;
+        meanV = ((float)meanV)/counter;
+
+        double x;
+        // Calculate std
+        for(int i = 0; i < labeledImage.length; i++) { // cycle through rows
+            for (int j = 0; j < labeledImage[0].length; j++) { // cycle through columns
+                if(isRoadClass(labeledImage[i][j])){
+                    // WILLIAM: CHECK RGB CORRECT
+                    x = originalImg.get(i,j)[0];
+
+                    stdH += (x - meanH)*(x - meanH); // R
+                    stdS += (originalImg.get(i, j)[1] - meanS)*(originalImg.get(i, j)[1] - meanS); // G
+                    stdV += (originalImg.get(i, j)[2] - meanV)*(originalImg.get(i, j)[2] - meanV); // B
+                }
+            }
+        }
+
+        stdH = (float)Math.sqrt(stdH / (counter - 1));
+        stdS = (float)Math.sqrt(stdS / (counter - 1));
+        stdV = (float)Math.sqrt(stdV / (counter - 1));
+
+        // Visit every pixel labeled class_index and test to see if it is an outlier
+        for(int i = 0; i < labeledImage.length; i++) { // cycle through rows
+            for (int j = 0; j < labeledImage[0].length; j++) { // cycle through columns
+                newLabeledImage[i][j] = labeledImage[i][j];
+                if (isRoadClass(labeledImage[i][j])) {
+                    if(  Math.abs(originalImg.get(i, j)[0] - meanH) > BB_Parameters.adaptive_std_dev_range_factor * stdH ||
+                            Math.abs(originalImg.get(i, j)[1] - meanS) > BB_Parameters.adaptive_std_dev_range_factor * stdS ||
+                            Math.abs(originalImg.get(i, j)[2] - meanV) > BB_Parameters.adaptive_std_dev_range_factor * stdV ){
+                        // outlier detected
+                        Log.v("Outlier", "At " + i + ", " + j + " = " + originalImg.get(i,j)[0] + "," + originalImg.get(i,j)[1] + ", " + originalImg.get(i,j)[2]);
+                        //START OF RECLASSIFICATION
+                        // Cycle through GMM list to figure out which class has the highest probability
+                        // AND IS NOT class_index
+                        double max = -10;
+                        int class_index = -1;
+                        double tmp;
+                        // WILLIAM: SWITCHING RGB TO BGR -- gmm uses order of b,g,r not the traditional r,g,b
+                        sample[2] = originalImg.get(i, j)[0]; // R
+                        sample[1] = originalImg.get(i, j)[1]; // G
+                        sample[0] = originalImg.get(i, j)[2]; // B
+
+                        for(int g = 0; g < gmms.size(); g++){
+                            if(isRoadClass(g)) continue;
+                            if((tmp = gmms.elementAt(g).predict(sample)) > max && tmp >= 0.0){
+                                // This means it is class g at this point
+                                class_index = g;
+                                max = tmp;
+                            }
+
+                        }
+                        //END OF RECLASSIFICATION
+                        count_Outliers++;
+
+                        //SOme counting AND
+                        //create binary image of road/not road pixels for future processing
+                        if(class_index == -1 ) {
+                            roadBinaryImage.put(i, j, 0);
+                        }
+                        else {
+
+                            if(isRoadClass(class_index)) //MEANS WE ALWAYS need to keep this meaning road
+                                roadBinaryImage.put(i, j, 255);
+                            else
+                                roadBinaryImage.put(i,j,0);
+                        }
+                        newLabeledImage[i][j] = class_index;
+
+
+                    }
+
+                }
+            }
+        }
+
+        Log.v("NumOutliers", Integer.toString(count_Outliers));
+        return newLabeledImage;
+    }
 
     /**
      *
@@ -534,7 +722,7 @@ public class Filter_Utility {
      * @param ignore
      * @return
      */
-    static int[][] adaptiveOutlierElimination(int detect_class_index, int[][] labeledImage, Vector<ClassedMultipleFixedRangeModel> fixedRangeModels, Mat originalImg, Mat roadBinaryImage, int ignore){
+    static int[][] adaptiveOutlierElimination(int[][] labeledImage, Vector<ClassedMultipleFixedRangeModel> fixedRangeModels, Mat originalImg, Mat roadBinaryImage, int ignore){
         return labeledImage;
     }
 

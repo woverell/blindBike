@@ -18,16 +18,26 @@ import java.util.Arrays;
 import edu.csueb.ilab.blindbike.blindbike.BB_Parameters;
 
 /**
+ * Class containing all methods pertaining to the hough transform and finding lines in the hough space.
  * Created by williamoverell on 2/27/16.
  */
 public class Hough_Lines {
+    /**
+     * computes HoughTransform where the polar space is partitioned for r into rAxisSize bins and for theta into thetaAxisSize bins
+     *   for the binary inputData where 255 are the pixels of interest.
+     * @param inputData - The contour edge input image
+     *  @param outputData - The grid in rho, theta space representing the hough space as a 1d array
+     *  @param thetaAxisSize - number of theta buckets
+     *  @param rAxisSize - number of rho buckets
+     * @param ignoreEdges - set to true to not process the boundary pixels in the image
+     */
     public static void houghTransform(Mat inputData, ArrayData outputData,  int thetaAxisSize, int rAxisSize, boolean ignoreEdges)
     {
         houghTransformVerticalLines(inputData, outputData, thetaAxisSize,rAxisSize, 90, 90, ignoreEdges); // WILL: Think this is wrong, would process no lines not all lines
     }
 
     /**
-     * computes HoughTransform where the polar space is partintioned for r into rAxisSize bins and for theta into thetaAxisSize bins
+     * computes HoughTransform where the polar space is partitioned for r into rAxisSize bins and for theta into thetaAxisSize bins
      *   for the binary inputData where 255 are the pixels of interest.  Note, does this in limited theta ranges to in essence find only
      *    "close" to vertical ranges of the Hough Space --- this in particular will calculate for the 0 to theta1 (which translates from Vertical to theta1
      *      angled lines in cartesian coordinates)  and AGAIN for the range of theta2 to 180degrees (which translates from -theta1 angled lines to Vertical in
@@ -135,8 +145,16 @@ public class Hough_Lines {
         else
             return false;
     }
-    
-    
+
+    /**
+     * This method handles converting the angle from the gradient calculation which
+     * is of the range -pi/2 to pi/2 into the coordinate system of the hough space
+     * which is of the range 0 to 180 degrees.  The gradient angle is perpendicular
+     * to the gradient of the point, so a angleToConvert of pi/2 would be a horizontal
+     * gradient, so the line this point would belong to would be vertical.
+     * @param angleToConvert
+     * @return returns angle in 0-180 hough space
+     */
     private static int convertGradiantToHoughAngle(double angleToConvert){
         angleToConvert = Math.toDegrees(angleToConvert); // convert radian angle to degrees
         if(angleToConvert > 0){ // if the angleToConvert is between 0 and pi/2 (90) then it will be in our quadrant II
@@ -149,14 +167,14 @@ public class Hough_Lines {
     }
 
     /**
-     * computes HoughTransform where the polar space is partintioned for r into rAxisSize bins and for theta into thetaAxisSize bins
+     * computes HoughTransform where the polar space is partitioned for r into rAxisSize bins and for theta into thetaAxisSize bins
      *   for the binary inputData where 255 are the pixels of interest.  Note, does this in limited theta ranges to in essence find only
      *    "close" to vertical ranges of the Hough Space --- this in particular will calculate for the 0 to theta1 (which translates from Vertical to theta1
      *      angled lines in cartesian coordinates)  and AGAIN for the range of theta2 to 180degrees (which translates from -theta1 angled lines to Vertical in
      *      cartesian coordinates)
-     *      IF a local point (contour) dow NOT have a local gradient mesasurement (nxn area) in our desired range  we will have a low vote contribution
+     *      IF a local point (contour) dow NOT have a local gradient measurement (nxn area) in our desired range  we will have a low vote contribution
      *      BUT if local gradientIS IN our desired angle range it has a HIGH weighting vote in hough space
-     *      what we are saying in essesence is that the local gradient is an "INDICATION" that the line going through
+     *      what we are saying in essence is that the local gradient is an "INDICATION" that the line going through
      *      that point is oriented by its gradient value.
      *  @param inputData - The contour edge input image
      *  @param outputData - The grid in rho, theta space representing the hough space as a 1d array
@@ -168,7 +186,8 @@ public class Hough_Lines {
      *                NOTE: to do +/- from vertical lines theta1 =45 and theta2 = 135
      *
      *  @param ignoreEdges - set to true to not process the boundary pixels in the image
-     *  @param localGradientNeighborhoodSize
+     *  @param origImage - original color image used to calculate the gradient
+     *  @param localGradientNeighborhoodSize - neighborhood size for calculating the gradient
      *
      */
     public static void houghTransformVerticalLinesMagnifyThetaWithColorChecking(Mat inputData, ArrayData outputData, int thetaAxisSize, int rAxisSize, float theta1, float theta2, boolean ignoreEdges, Mat origImage, int localGradientNeighborhoodSize){
@@ -283,7 +302,7 @@ public class Hough_Lines {
      *                NOTE: to do +/- from vertical lines theta1 =45 and theta2 = 135
      *
      *  @param ignoreEdges - set to true to not process the boundary pixels in the image
-     *  @param roadLabelImage - road labeled image
+     *  @param roadLabelImage - road labeled image for calculating the gradient
      *  @param localGradientNeighborhoodSize - size of neighborhood nxn to use for gradient kernel
      *
      */
@@ -384,7 +403,7 @@ public class Hough_Lines {
      *                NOTE: to do +/- from vertical lines theta1 =45 and theta2 = 135
      *
      *  @param ignoreEdges - set to true to not process the boundary pixels in the image
-     *  @param roadLabelImage - road labeled image
+     *  @param roadLabelImage - road labeled image for calculating the gradient
      *  @param localGradientNeighborhoodSize - size of neighborhood nxn to use for gradient kernel
      *
      */
@@ -466,10 +485,8 @@ public class Hough_Lines {
      *    "close" to vertical ranges of the Hough Space --- this in particular will calculate for the 0 to theta1 (which translates from Vertical to theta1
      *      angled lines in cartesian coordinates)  and AGAIN for the range of theta2 to 180degrees (which translates from -theta1 angled lines to Vertical in
      *      cartesian coordinates)
-     *      IF a local point (contour) dow NOT have a local gradient mesasurement (nxn area) in our desired range  we will have a low vote contribution
-     *      BUT if local gradientIS IN our desired angle range it has a HIGH weighting vote in hough space
-     *      what we are saying in essesence is that the local gradient is an "INDICATION" that the line going through
-     *      that point is oriented by its gradient value.
+     *  A point will only vote for a range of theta surrounding the theta perpendicular to its gradient.  In essence a point will only
+     *  vote for the lines which are perpendicular to its gradient.
      *  @param inputData - The contour edge input image
      *  @param outputData - The grid in rho, theta space representing the hough space as a 1d array
      *  @param thetaAxisSize - number of theta buckets
@@ -480,7 +497,7 @@ public class Hough_Lines {
      *                NOTE: to do +/- from vertical lines theta1 =45 and theta2 = 135
      *
      *  @param ignoreEdges - set to true to not process the boundary pixels in the image
-     *  @param roadLabelImage - road labeled image
+     *  @param roadLabelImage - road labeled image for calculating the gradient
      *  @param localGradientNeighborhoodSize - size of neighborhood nxn to use for gradient kernel
      *
      */
@@ -615,7 +632,8 @@ public class Hough_Lines {
      *                NOTE: to do +/- from vertical lines theta1 =45 and theta2 = 135
      *
      *  @param ignoreEdges - set to true to not process the boundary pixels in the image
-     *  @param localGradientNeighborhoodSize
+     *  @param origImage - original color image to be used for calculating the gradient
+     *  @param localGradientNeighborhoodSize - neighborhood size for calculating the gradient
      *
      */
     public static void houghTransformVerticalLinesEliminateThetaWithColorChecking(Mat inputData, ArrayData outputData, int thetaAxisSize, int rAxisSize, float theta1, float theta2, boolean ignoreEdges, Mat origImage, int localGradientNeighborhoodSize) {
@@ -693,10 +711,8 @@ public class Hough_Lines {
      *    "close" to vertical ranges of the Hough Space --- this in particular will calculate for the 0 to theta1 (which translates from Vertical to theta1
      *      angled lines in cartesian coordinates)  and AGAIN for the range of theta2 to 180degrees (which translates from -theta1 angled lines to Vertical in
      *      cartesian coordinates)
-     *      IF a local point (contour) dow NOT have a local gradient mesasurement (nxn area) in our desired range  we will have a low vote contribution
-     *      BUT if local gradientIS IN our desired angle range it has a HIGH weighting vote in hough space
-     *      what we are saying in essesence is that the local gradient is an "INDICATION" that the line going through
-     *      that point is oriented by its gradient value.
+     *  A point will only vote for a range of theta surrounding the theta perpendicular to its gradient.  In essence a point will only
+     *  vote for the lines which are perpendicular to its gradient.
      *  @param inputData - The contour edge input image
      *  @param outputData - The grid in rho, theta space representing the hough space as a 1d array
      *  @param thetaAxisSize - number of theta buckets
@@ -707,7 +723,8 @@ public class Hough_Lines {
      *                NOTE: to do +/- from vertical lines theta1 =45 and theta2 = 135
      *
      *  @param ignoreEdges - set to true to not process the boundary pixels in the image
-     *  @param localGradientNeighborhoodSize
+     *  @param origImage - original color image to be used to calculate the gradient of contour points
+     *  @param localGradientNeighborhoodSize - neighborhood size used in calulating the gradient
      *
      */
     public static void houghTransformVerticalLinesReduceThetaWithColorChecking(Mat inputData, ArrayData outputData, int thetaAxisSize, int rAxisSize, float theta1, float theta2, boolean ignoreEdges, Mat origImage, int localGradientNeighborhoodSize) {
