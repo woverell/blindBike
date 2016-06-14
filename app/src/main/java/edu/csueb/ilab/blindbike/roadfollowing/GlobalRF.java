@@ -16,7 +16,10 @@ import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -65,7 +68,7 @@ public class GlobalRF {
     Vector<ClassedMultipleFixedRangeModel> fixedRangeModels;
 
     /**
-     * Same dimensions as passd image frames, each index corresponds to pixel at same
+     * Same dimensions as passed image frames, each index corresponds to pixel at same
      * location in image and stores value of class for that pixel
      */
     int labeledImage[][];
@@ -167,7 +170,8 @@ public class GlobalRF {
      * @param measuredBearing
      * @return
      */
-    public String processFrame(Mat imgFrame, double desiredBearing, double measuredBearing) {
+    public String processFrame(Mat imgFrame, double desiredBearing, double measuredBearing, String filename) {
+        Log.v("TIMING", "PROCESSING STARTED");
         boolean road_edge_found = false; // will be true if road edge found in this frame
         int desired_measured_bearing_difference = 0; // set the default bearing difference to 0
 
@@ -199,7 +203,7 @@ public class GlobalRF {
         // regionOfInterest is a submat of imgFrame, any changes to regionOfInterest will change imgFrame
         Mat regionOfInterest = imgFrame.submat(this.heightCutoff, imgFrame.height(), 0, imgFrame.width());
         Mat originalRegionOfInterestClone = regionOfInterest.clone();
-
+        Log.v("TIMING", "REGION OF INTEREST FINISHED");
         // PHASE 4: Homographic Transform (TBD)
 
 
@@ -243,6 +247,23 @@ public class GlobalRF {
             }
         }
 
+        // If test params then save the labeledImage
+        if(BB_Parameters.test_mode) {
+            try {
+                File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                File file = new File(path, filename + ".dat");
+                FileOutputStream out = new FileOutputStream(file);
+                ObjectOutputStream oout = new ObjectOutputStream(out);
+
+                oout.writeObject(labeledImage);
+                oout.flush();
+            } catch (FileNotFoundException e) {
+
+            } catch (IOException e) {
+
+            }
+        }
+
         // If pseudo creation parameter is true then create pseudo image
         if(BB_Parameters.displaypseudoLabelImage)
             if(BB_Parameters.classifyByGMM_NOT_FixedRange){
@@ -258,7 +279,7 @@ public class GlobalRF {
             else
                 Filter_Utility.displayBooleanImage(this.roadBinaryImage, regionOfInterest, fixedRangeModels.elementAt(BB_Parameters.road_class_index).pseudocolor, BB_Parameters.otherClassPseudocolor);
         }
-
+        Log.v("TIMING", "CLASSIFICATION FINISHED");
         // PHASE 6: Blob Detection
         this.contours.clear(); // clear all old contours
 
@@ -277,6 +298,7 @@ public class GlobalRF {
 
         // Find contours in the roadBinaryImage
         Imgproc.findContours(this.roadBinaryImage, this.contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+        Log.v("TIMING", "BLOB DETECTION FINISHED");
 
 
 
@@ -286,20 +308,22 @@ public class GlobalRF {
         double areaOfTopContours[] = new double[2];
         topContours[0] = null;
         topContours[1] = null;
+        List<MatOfPoint> eligibleContourList = new ArrayList<MatOfPoint>();
+        List<MatOfPoint> locationReducedContourList = new ArrayList<MatOfPoint>();
+
+        if(BB_Parameters.displayAllContours == true) {
+            for(int p = 0; p < this.contours.size(); p++)
+                Imgproc.drawContours(regionOfInterest, this.contours, p, new Scalar(pseudoColorRandom.nextInt(255), pseudoColorRandom.nextInt(255), pseudoColorRandom.nextInt(255)), 3);
+        }
 
         while(each.hasNext()){
             MatOfPoint nextContour = each.next(); // get the next blob
-
-            if(BB_Parameters.displayAllContours == true) {
-                List<MatOfPoint> nextContourList = new ArrayList<MatOfPoint>();
-                nextContourList.add(nextContour);
-                Imgproc.drawContours(regionOfInterest, nextContourList, -1, new Scalar(pseudoColorRandom.nextInt(255), pseudoColorRandom.nextInt(255), pseudoColorRandom.nextInt(255)));
-            }
 
             double contourArea = Imgproc.contourArea(nextContour); // Can possibly ignore and look for small "blob" by looking at contour length instead
 
             // 7.1: Small blob elimination
             if(contourArea > BB_Parameters.minNumberBlobPixels) {
+                eligibleContourList.add(nextContour);
                 //Log.i("ContourArea:", Double.toString(contourArea));
                 //Log.i("ContourHeight", Double.toString(nextContour.size().height));
                 //Log.i("ContourWidth", Double.toString(nextContour.size().width));
@@ -319,6 +343,7 @@ public class GlobalRF {
                 // Solution = largest 2 blobs in the lower right blob search area specified by BB_Parameters.startingRow,startingColumn
                 // and the lower right pixel location of the entire image
                 if(isInBlobSearchArea(nextContour)){
+                    locationReducedContourList.add(nextContour);
                     if(topContours[0] == null){
                         topContours[0] = nextContour;
                         areaOfTopContours[0] = contourArea;
@@ -347,6 +372,15 @@ public class GlobalRF {
             }else{
                 //each.remove(); // If not min number of pixels then remove
             }
+        }
+        Log.v("TIMING", "BLOB SELECTION FINISHED");
+        if(BB_Parameters.displayEligibleContours){
+            for(int p = 0; p < eligibleContourList.size(); p++)
+                Imgproc.drawContours(regionOfInterest, eligibleContourList, p,new Scalar(pseudoColorRandom.nextInt(255), pseudoColorRandom.nextInt(255), pseudoColorRandom.nextInt(255)), 3);
+        }else if(BB_Parameters.displayLocationReducedContours){
+            for(int p = 0; p < locationReducedContourList.size(); p++)
+                Imgproc.drawContours(regionOfInterest, locationReducedContourList, p,new Scalar(pseudoColorRandom.nextInt(255), pseudoColorRandom.nextInt(255), pseudoColorRandom.nextInt(255)), 3);
+
         }
 
         // Draw the top 2 contours
@@ -493,7 +527,7 @@ public class GlobalRF {
                     if(this.topLinePt1 == null && slope_of_curr_line >= 0){
                         this.topLinePt1 = pt1.clone();
                         this.topLinePt2 = pt2.clone();
-                        topLineNumVotes = currentLine[2];
+                        topLineNumVotes = numVotes;
 
                         road_edge_found = true; // signal a road edge was found
 
@@ -503,7 +537,7 @@ public class GlobalRF {
                         // if the current point is further right than the current top line then replace
                         this.topLinePt1 = pt1.clone();
                         this.topLinePt2 = pt2.clone();
-                        topLineNumVotes = currentLine[2];
+                        topLineNumVotes = numVotes;
                     }
                 }else if(BB_Parameters.rightMostLineSelectionOption == 2){
                     // OPTION 2 - intersect bottom row furthest right
@@ -512,7 +546,7 @@ public class GlobalRF {
                         intersection_col_at_bottom_row = temp_intersection_col_at_bottom_row;
                         this.topLinePt1 = pt1.clone();
                         this.topLinePt2 = pt2.clone();
-                        topLineNumVotes = currentLine[2];
+                        topLineNumVotes = numVotes;
                         road_edge_found = true;
                     }
 
@@ -523,7 +557,15 @@ public class GlobalRF {
                         intersection_col_at_middle_row_difference = temp_intersection_col_at_middle_row_difference;
                         this.topLinePt1 = pt1.clone();
                         this.topLinePt2 = pt2.clone();
-                        topLineNumVotes = currentLine[2];
+                        topLineNumVotes = numVotes;
+                        road_edge_found = true;
+                    }
+                }else if(BB_Parameters.rightMostLineSelectionOption == 4){
+                    // Option 4 - highest voted line
+                    if(numVotes >= topLineNumVotes){
+                        this.topLinePt1 = pt1.clone();
+                        this.topLinePt2 = pt2.clone();
+                        topLineNumVotes = numVotes;
                         road_edge_found = true;
                     }
                 }
@@ -561,12 +603,16 @@ public class GlobalRF {
             }
             //}
         }
+
+        Log.v("TIMING", "ROAD EDGE DETECTION FINISHED");
+
         if(road_edge_found) {
             // Draw the road edge
             Log.v("ROAD EDGE", "R.E. FOUND!");
-            Core.line(regionOfInterest, this.topLinePt1, this.topLinePt2, new Scalar(0, 255, 0)); // green
-            Core.putText(regionOfInterest, Double.toString(topLineNumVotes), new Point(20,20), Core.FONT_HERSHEY_COMPLEX, 0.4, new Scalar(0, 255, 0));
-
+            if(BB_Parameters.displayRoadEdge) {
+                Core.line(regionOfInterest, this.topLinePt1, this.topLinePt2, new Scalar(0, 255, 0)); // green
+                Core.putText(regionOfInterest, Double.toString(topLineNumVotes), new Point(20, 20), Core.FONT_HERSHEY_COMPLEX, 0.4, new Scalar(0, 255, 0));
+            }
 
             // Decide if need to go to the left or right
             if (this.topLinePt1.y >= this.topLinePt2.y) { // Check which end point of the line is the bottom point
@@ -604,9 +650,9 @@ public class GlobalRF {
                 if(this.topLinePt2.y != regionOfInterest.height() - 1) {
                     double slope_of_curr_line = slope(this.topLinePt1, this.topLinePt2); // slope of the current line
 
-                    bottomRowIntersectionPoint = (int) (this.topLinePt2.x + ( 1 / slope_of_curr_line) * (regionOfInterest.height() - this.topLinePt2.y));
+                    bottomRowIntersectionPoint = (int) (this.topLinePt1.x + ( 1 / slope_of_curr_line) * (regionOfInterest.height() - this.topLinePt1.y));
                 }else {
-                    bottomRowIntersectionPoint = (int) this.topLinePt1.x;
+                    bottomRowIntersectionPoint = (int) this.topLinePt2.x;
                 }
                 double metersFromRoadEdge = ((BB_Parameters.runningResolution_width / 2) - bottomRowIntersectionPoint) / BB_Parameters.pixelsPerMeter;
                 if(metersFromRoadEdge < 0)

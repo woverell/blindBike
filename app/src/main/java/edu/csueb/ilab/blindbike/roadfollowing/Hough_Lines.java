@@ -33,7 +33,7 @@ public class Hough_Lines {
      */
     public static void houghTransform(Mat inputData, ArrayData outputData,  int thetaAxisSize, int rAxisSize, boolean ignoreEdges)
     {
-        houghTransformVerticalLines(inputData, outputData, thetaAxisSize,rAxisSize, 90, 90, ignoreEdges); // WILL: Think this is wrong, would process no lines not all lines
+        houghTransformVerticalLines(inputData, outputData, thetaAxisSize,rAxisSize, 90, 90, ignoreEdges);
     }
 
     /**
@@ -85,18 +85,22 @@ public class Hough_Lines {
         Log.v("Theta Bin Size","theta1Bin: " + theta1Bin + " theta2Bin: " +theta2Bin);
 
         // not processing the boundary of the image
-        int rows, cols;
+        int rows, cols, startrow, startcol;
         if(ignoreEdges){
             rows = height - 5;
             cols = width - 5;
+            startrow = 5;
+            startcol = 5;
         }else{
             rows = height - 1;
             cols = width - 1;
+            startrow = 0;
+            startcol = 0;
         }
 
-        for (int y = rows; y >= 0; y--)
+        for (int y = rows; y >= startrow; y--)
         {
-            for (int x = cols; x >= 0; x--)
+            for (int x = cols; x >= startcol; x--)
             {
                 if (inputData.get(y,x)[0] > 0) //point want to analyize OLD CODE: if (inputData.contrast(x, y, minContrast))
                 {
@@ -221,21 +225,25 @@ public class Hough_Lines {
         Log.v("Theta Bin Size","theta1Bin: " + theta1Bin + " theta2Bin: " +theta2Bin);
 
         // not processing the boundary of the image
-        int rows, cols;
+        int rows, cols, startrow, startcol;
         if(ignoreEdges){
             rows = height - 5;
             cols = width - 5;
+            startrow = 5;
+            startcol = 5;
         }else{
             rows = height - 1;
             cols = width - 1;
+            startrow = 0;
+            startcol = 0;
         }
 
         int weight = 1; // set default weight value
         double[] color_gradient_magnitude;
         // visit every pixel in the contour image
-        for (int y = rows; y >= 0; y--)
+        for (int y = rows; y >= startrow; y--)
         {
-            for (int x = cols; x >= 0; x--)
+            for (int x = cols; x >= startcol; x--)
             {
                 // If this is a contour pixel
                 if (inputData.get(y,x)[0] > 0) //point want to analyize OLD CODE: if (inputData.contrast(x, y, minContrast))
@@ -338,21 +346,25 @@ public class Hough_Lines {
         Log.v("Theta Bin Size","theta1Bin: " + theta1Bin + " theta2Bin: " +theta2Bin);
 
         // not processing the boundary of the image
-        int rows, cols;
+        int rows, cols, startrow, startcol;
         if(ignoreEdges){
             rows = height - 5;
             cols = width - 5;
+            startrow = 5;
+            startcol = 5;
         }else{
             rows = height - 1;
             cols = width - 1;
+            startrow = 0;
+            startcol = 0;
         }
 
         int weight = 1; // set default weight value
         double[] gradient_orientationAndMagnitude;
          // visit every pixel in the contour image
-        for (int y = rows; y >= 0; y--)
+        for (int y = rows; y >= startrow; y--)
         {
-            for (int x = cols; x >= 0; x--)
+            for (int x = cols; x >= startcol; x--)
             {
                 if (inputData.get(y,x)[0] > 0) //point want to analyize OLD CODE: if (inputData.contrast(x, y, minContrast))
                 {
@@ -439,20 +451,24 @@ public class Hough_Lines {
         Log.v("Theta Bin Size","theta1Bin: " + theta1Bin + " theta2Bin: " +theta2Bin);
 
         // not processing the boundary of the image
-        int rows, cols;
+        int rows, cols, startrow, startcol;
         if(ignoreEdges){
             rows = height - 5;
             cols = width - 5;
+            startrow = 5;
+            startcol = 5;
         }else{
             rows = height - 1;
             cols = width - 1;
+            startrow = 0;
+            startcol = 0;
         }
 
         double[] gradient_orientationAndMagnitude;
         // visit every pixel in the contour image
-        for (int y = rows; y >= 0; y--)
+        for (int y = rows; y >= startrow; y--)
         {
-            for (int x = cols; x >= 0; x--)
+            for (int x = cols; x >= startcol; x--)
             {
                 if (inputData.get(y,x)[0] > 0) //point want to analyize OLD CODE: if (inputData.contrast(x, y, minContrast))
                 {
@@ -533,20 +549,24 @@ public class Hough_Lines {
         Log.v("Theta Bin Size","theta1Bin: " + theta1Bin + " theta2Bin: " +theta2Bin);
 
         // not processing the boundary of the image
-        int rows, cols;
+        int rows, cols, startrow, startcol;
         if(ignoreEdges){
             rows = height - 5;
             cols = width - 5;
+            startrow = 5;
+            startcol = 5;
         }else{
             rows = height - 1;
             cols = width - 1;
+            startrow = 0;
+            startcol = 0;
         }
 
         double[] gradient_orientationAndMagnitude;
         // visit every pixel in the contour image
-        for (int y = rows; y >= 0; y--)
+        for (int y = rows; y >= startrow; y--)
         {
-            for (int x = cols; x >= 0; x--)
+            for (int x = cols; x >= startcol; x--)
             {
                 if (inputData.get(y,x)[0] > 0) //point want to analyize OLD CODE: if (inputData.contrast(x, y, minContrast))
                 {
@@ -668,19 +688,23 @@ public class Hough_Lines {
         Log.v("Theta Bin Size", "theta1Bin: " + theta1Bin + " theta2Bin: " + theta2Bin);
 
         // not processing the boundary of the image
-        int rows, cols;
+        int rows, cols, startrow, startcol;
         if (ignoreEdges) {
             rows = height - 5;
             cols = width - 5;
+            startrow = 5;
+            startcol = 5;
         } else {
             rows = height - 1;
             cols = width - 1;
+            startrow = 0;
+            startcol = 0;
         }
 
         double[] color_gradient_magnitude;
         // visit every pixel in the contour image
-        for (int y = rows; y >= 0; y--) {
-            for (int x = cols; x >= 0; x--) {
+        for (int y = rows; y >= startrow; y--) {
+            for (int x = cols; x >= startcol; x--) {
                 // If this is a contour pixel
                 if (inputData.get(y, x)[0] > 0) //point want to analyize OLD CODE: if (inputData.contrast(x, y, minContrast))
                 {
@@ -759,20 +783,24 @@ public class Hough_Lines {
         Log.v("Theta Bin Size", "theta1Bin: " + theta1Bin + " theta2Bin: " + theta2Bin);
 
         // not processing the boundary of the image
-        int rows, cols;
+        int rows, cols, startrow, startcol;
         if (ignoreEdges) {
             rows = height - 5;
             cols = width - 5;
+            startrow = 5;
+            startcol = 5;
         } else {
             rows = height - 1;
             cols = width - 1;
+            startrow = 0;
+            startcol = 0;
         }
 
         double[] color_gradient_magnitude;
 
         // visit every pixel in the contour image
-        for (int y = rows; y >= 0; y--) {
-            for (int x = cols; x >= 0; x--) {
+        for (int y = rows; y >= startrow; y--) {
+            for (int x = cols; x >= startcol; x--) {
                 // If this is a contour pixel
                 if (inputData.get(y, x)[0] > 0) //point want to analyize OLD CODE: if (inputData.contrast(x, y, minContrast))
                 {
@@ -1053,7 +1081,7 @@ public class Hough_Lines {
             {
 
                 currentValue = 0;
-                // LOOPING THROUGH ALL BUCKETS in a Smoothig neighborhood surroing bin (widht,height)
+                // LOOPING THROUGH ALL BUCKETS in a Smoothing neighborhood surrounding bin (width,height)
                 for (int r = -1 * localMaxNeighborhoodSpanParam; r <= localMaxNeighborhoodSpanParam; r++)
                     for (int theta = -1 * localMaxNeighborhoodSpanParam; theta <= localMaxNeighborhoodSpanParam; theta++) {
                         if ((height + r >= 0) && (height + r < arrayData.height) && (width + theta >= 0 )&& (width + theta < arrayData.width)) {
@@ -1073,7 +1101,7 @@ public class Hough_Lines {
                 for(int r_center = -1 * localMaxNeighborhoodSpanParam; r_center <= localMaxNeighborhoodSpanParam; r_center++)
                     for(int theta_center = -1 * localMaxNeighborhoodSpanParam; theta_center <= localMaxNeighborhoodSpanParam; theta_center++) {
                         sum = 0;
-                        //calculae sum in smoothing neighborhood around the (widht+theta_center, height+r_center) bin
+                        //calculate sum in smoothing neighborhood around the (widht+theta_center, height+r_center) bin
                         for (int r = -1 * localMaxNeighborhoodSpanParam; r <= localMaxNeighborhoodSpanParam; r++)
                             for (int theta = -1 * localMaxNeighborhoodSpanParam; theta <= localMaxNeighborhoodSpanParam; theta++) {
                                 if ((height + r +r_center >= 0) && (height + r +r_center < arrayData.height) && (width + theta + theta_center >= 0) && (width + theta + theta_center < arrayData.width)) {

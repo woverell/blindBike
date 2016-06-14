@@ -336,6 +336,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 
 	// --- End of route and instruction objects ---
 
+	private boolean haveSavedAlready; // used for test_mode in BB_Parameters for saving image to phone gallery
+
 	/**
 	 * TextToSpeech for audio output
 	 */
@@ -898,6 +900,8 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
 		mSensorManager.registerListener(this, mMagnetometer, SensorManager.SENSOR_DELAY_NORMAL);
 
+		this.haveSavedAlready = false;
+
 		// Initialize OpenCV manager
 		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_9, this, mLoaderCallback); // CHRIS: What should the version actually be?
 
@@ -977,7 +981,7 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 			Utils.bitmapToMat(bmp, this.dummy_Image); // URL: http://stackoverflow.com/questions/17390289/convert-bitmap-to-mat-after-capture-image-using-android-camera
 			this.dummy_Image.copyTo(mRgba);
 
-			globalRF.processFrame(mRgba,0,0); // process the frame
+			Log.v("INSTRUCTION", filename + " :" + globalRF.processFrame(mRgba,0,0, filename + "_classLabels")); // process the frame
 
 			saveMatToFile(mRgba, filename + "_processed"); // save the image
 		}
@@ -1033,15 +1037,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		// write out to a log file to monitor performance
 		// NOTE: Looking at the org.opencv.android.FpsMeter
 
-		// Light Detection
-		lightDetector.processFrame(mRgba);
-
-		// Obstacle Detection
-		obstacleAvoidance.processFrame(mRgba);
-
 		// CALL ROAD FOLLOWING(William)
 		// and update the directions to be given to the user
-		this.directionsText = globalRF.processFrame(mRgba, this.desiredBearing, this.currentBearing);
+		this.directionsText = globalRF.processFrame(mRgba, this.desiredBearing, this.currentBearing, "");
 		// If there is something to speak then speak it
 		if(this.directionsText.length()>1)
 			tts.speak(this.directionsText, TextToSpeech.QUEUE_FLUSH, null);
@@ -1056,6 +1054,10 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 		Mat perspectiveTransform = Imgproc.getPerspectiveTransform(src_mat, dst_mat);
 		Mat dst=mRgba.clone();
 		Imgproc.warpPerspective(mRgba, dst, perspectiveTransform, dst.size());*/
+		if(BB_Parameters.test_mode && BB_Parameters.save_to_gallery && !this.haveSavedAlready) {
+			saveMatToFile(mRgba, "test_mode_processed"); // save the image
+			this.haveSavedAlready = true;
+		}
 
 		return mRgba;
 	}

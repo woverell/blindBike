@@ -32,7 +32,7 @@ public class BB_Parameters {
     public static boolean VERBOSE = false;
 
     // Standard Deviation range for GMM Classification
-    public static double std_dev_range_factor = 1.5; // for multiple classes (road,sky,white-line)
+    public static double std_dev_range_factor = 1.8; // for multiple classes (road,sky,white-line)
     public static double std_dev_range_factor_small = 1.0; // for single class (road/non-road)
 
     // Training data resolution
@@ -61,16 +61,19 @@ public class BB_Parameters {
 
     // If test_mode true then we process on testImage rather than camera images
     // MUST BE SET TO TRUE FOR BATCH TESTING
-    public static final boolean test_mode = true;
+    public static final boolean test_mode = false;
+    public static final boolean save_to_gallery = true; // set to true to save the output of the test_mode to the phone gallery
 
     // set to true if want to process on images in assets/imgs_to_process folder
     // processed output will be saved in the photo gallery on device
     // test_mode MUST ALSO BE SET TO TRUE FOR BATCH TESTING
-    public static final boolean batch_testing = true;
+    public static final boolean batch_testing = false;
 
-    // Image to use in test_mode
+    // **********************************************************************************************
+    // ********************************Image to use in test_mode*************************************
     // Images are put in res/drawable folder in .png format
-    public static int testImage = R.drawable.roadtest10;
+    public static int testImage = R.drawable.roadtest17;
+    //***********************************************************************************************
 
     // Parameter for Small Blob Elimination Step (Step 7.1)
     // Based on birds eye view geometry which we dont have 10 columns filling aprox 280 pixel high image would be 2800
@@ -84,7 +87,7 @@ public class BB_Parameters {
 
     // Set true to classify using RGB
     // Set false to classify using HSV
-    public static final boolean classifyByRGBNotHSV = true;
+    public static final boolean classifyByRGBNotHSV = false;
 
     /**
      * true if classifying with GMM, false if classifying with fixed ranges
@@ -97,7 +100,7 @@ public class BB_Parameters {
      * adaptive_std_dev_range_factor*stddev of road pixels in THAT image
      * from the mean of the road pixels in THAT image
      */
-    public static final boolean adaptive_outlier_elimination = false;
+    public static final boolean adaptive_outlier_elimination = true;
 
     /**
      * standard deviation
@@ -114,9 +117,15 @@ public class BB_Parameters {
 
     public static final boolean displayAllContours = false;
 
+    public static final boolean displayEligibleContours = false;
+
+    public static final boolean displayLocationReducedContours = false;
+
     public static final boolean displayTopTwoContours = false;
 
     public static final boolean displayHoughLines = false;
+
+    public static final boolean displayRoadEdge = false;
 
     public static final boolean displayBinaryContourImage = false;
 
@@ -176,7 +185,8 @@ public class BB_Parameters {
     // 1 - pick line with positive slope(pointing to top left) that has endpoints on avg furthest right
     // 2 - pick line that intersects the bottom row of the image furthest to the right
     // 3 - pick line that intersects the middle row of the image closest to the center of the image
-    public static final int rightMostLineSelectionOption = 2;
+    // 4 - pick the highest voted line
+    public static final int rightMostLineSelectionOption = 4;
 
 
     // Camera downward tilt angle - how far the camera is angled downward on the handlebars
@@ -193,9 +203,9 @@ public class BB_Parameters {
 
     // Merge direction thresholds
     public static int leftOfCenterThreshold; // Set in CustomizeView.java because of different resolutions
-    public static final double leftOfCenterOffsetMeters = 0.8; // How many meters off the user can be on the left
+    public static final double leftOfCenterOffsetMeters = 0.0; // How many meters off the user can be on the left
     public static int rightOfCenterThreshold; // Set in CustomizeView.java because of different resolutions
-    public static final double rightOfCenterOffsetMeters = 0.8; // How many meters off the user can be on the right
+    public static final double rightOfCenterOffsetMeters = 1.2; // How many meters off the user can be on the right
 
 
     // Parameter for blob search area

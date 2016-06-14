@@ -33,12 +33,6 @@
             android:inputType="text"
             android:hint="Location"/>
 
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/options_button_text"
-            android:id="@+id/optionsButton"
-            android:layout_gravity="right" />
     </LinearLayout>
 
     <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -58,13 +52,5 @@
             android:textSize="50sp"
             android:background="@color/go_button_color" />
 
-        <Button
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:text="@string/help_button_text"
-            android:id="@+id/helpButton"
-            android:layout_weight="1"
-            android:textSize="50sp"
-            android:background="@color/help_button_color" />
     </LinearLayout>
 </LinearLayout>
