@@ -125,7 +125,7 @@ public class BB_Parameters {
 
     public static final boolean displayHoughLines = false;
 
-    public static final boolean displayRoadEdge = false;
+    public static final boolean displayRoadEdge = true;
 
     public static final boolean displayBinaryContourImage = false;
 
@@ -168,7 +168,7 @@ public class BB_Parameters {
     // 6 = BINARY reduction by theta with minimum magnitude
     // 7 = NO Hough --Doing Right Lower Contour Perfect Vertical Line (ave column) fitting
     // 8 = NO Hough -- Doing Right Lower Contour Line estimation
-    public static final int houghMethodNumber = 7;
+    public static final int houghMethodNumber = 5;
 
     //Parameters for "houghMethod" 7 Right Lower Contour Perfect Vertical Line (ave column) fitting
     public static  int  verticalLineFit_Examine_HorizontalSlice_row_top = 120; //cant be more than bottom
@@ -186,7 +186,7 @@ public class BB_Parameters {
     // 2 - pick line that intersects the bottom row of the image furthest to the right
     // 3 - pick line that intersects the middle row of the image closest to the center of the image
     // 4 - pick the highest voted line
-    public static final int rightMostLineSelectionOption = 4;
+    public static final int rightMostLineSelectionOption = 1;
 
 
     // Camera downward tilt angle - how far the camera is angled downward on the handlebars

@@ -1319,6 +1319,9 @@ public class NaviActivity extends MapActivity implements OnInitListener,
 				}
 				updateInstruction();
 			}
+			//This is to keep a track of the marker as it moves
+			GeoPoint gp = new GeoPoint(lat,lng);
+			map.getController().animateTo(gp);
 		}
 	}
 
